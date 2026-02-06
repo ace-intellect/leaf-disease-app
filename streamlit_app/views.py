@@ -388,15 +388,70 @@ def dashboard_page():
 
     # --- MAIN ---
     st.title("🌿 AgriDetectAI Dashboard")
+    # --- LOGOUT BUTTON (Styled like Login Button) ---
+    # --- SMALL LOGOUT BUTTON TOP-RIGHT ---
+    col1, col2 = st.columns([9, 1])  # Push button to right
+    with col2:
+        if st.button("🚪", help="Logout"):
+            st.session_state['authenticated'] = False
+            st.session_state['user'] = None
+            st.session_state['page'] = 'landing'
+            st.rerun()
 
-    tab_analysis, tab_connect, tab_climate, tab_analytics, tab_history, tab_about = st.tabs([
-        "🔍 Analysis", "🤝 AgriConnect", "🌦️ Climate", "📊 Analytics", "📜 History", "ℹ️ About"
+
+    tab_home, tab_profile, tab_analysis, tab_connect, tab_climate, tab_analytics, tab_history, tab_about = st.tabs([
+        "🏠 Home", "👤 Profile", "🔍 Analysis", "🤝 AgriConnect", "🌦️ Climate", "📊 Analytics", "📜 History", "ℹ️ About"
     ])
-    
+
+    # =====================================================
+    # 🏠 HOME TAB
+    # =====================================================
+    with tab_home:
+        st.header("🏠 Welcome to AgriDetectAI")
+        st.markdown(f"""
+        Hello **{user['name']}**, welcome back to your farm intelligence dashboard! 🌿
+
+        Here you can:
+        - Upload leaf images to detect diseases instantly.
+        - Monitor your local climate and receive early disease alerts.
+        - Track historical analysis and yield projections.
+        - Connect with the AgriConnect community for advice and discussions.
+
+        💡 **Tip:** Keep your crop images clear and well-lit for the most accurate AI predictions.
+        """)
+        
+
+    # =====================================================
+    # 👤 PROFILE TAB
+    # =====================================================
+    with tab_profile:
+        st.header("👤 User Profile")
+        
+        st.subheader("Personal Information")
+        st.markdown(f"""
+        **Name:** {user['name']}  
+        **Email:** {user.get('email', 'Not Provided')}  
+        **Joined On:** {user.get('join_date', 'N/A').split(' ')[0]}  
+        """)
+        
+        st.subheader("Farm Details")
+        st.markdown("""
+        - Farm Size: 5 hectares  
+        - Main Crops: Rice, Potato, Tomato  
+        - Location: Not Provided  
+        """)
+        
+        st.subheader("Account Settings")
+        st.markdown("""
+        You can update your account preferences, change your password, or connect with other farmers through AgriConnect.  
+        """)
+        
+        if st.button("Update Profile"):
+            st.success("Profile update page coming soon!")
+
     # =====================================================
     # 🔍 ANALYSIS TAB
     # =====================================================
-    
     with tab_analysis:
         st.markdown("### AI Disease Diagnosis")
 
@@ -499,6 +554,7 @@ def dashboard_page():
 
                     except Exception as e:
                         st.error(f"Prediction Error: {e}")
+
     # --- TAB 2: AGRICONNECT ---
     with tab_connect:
         st.header("🤝 AgriConnect Community")
@@ -611,6 +667,7 @@ def dashboard_page():
                     - **Pumpkin & Wheat**
         Across all models, the system identifies both **diseased and healthy leaves**, enabling fast, dependable plant health assessments and supporting data-driven agricultural practices.
         """)
+
                         
 
     
