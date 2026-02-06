@@ -1,0 +1,10 @@
+streamlit
+tensorflow
+torch
+torchvision
+pillow
+numpy
+pandas
+matplotlib
+plotly
+passlib
