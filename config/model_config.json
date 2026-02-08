@@ -18,6 +18,21 @@
                 "11": "Rice Sheath Blight"
             }
         },
+        "corn_blackgram": {
+            "file": "corn_blackgram.h5",
+            "type": "tensorflow",
+            "classes": {
+                "0": "Blackgram Anthracnose",
+                "1": "Blackgram Healthy",
+                "2": "Blackgram Leaf Crinkle",
+                "3": "Blackgram Powdery Mildew",
+                "4": "Blackgram Yellow Mosaic",
+                "5": "Corn Blight",
+                "6": "Corn Common Rust",
+                "7": "Corn Gray Leaf Spot",
+                "8": "Corn Healthy"
+            }
+        },
         "cotton_tomato": {
             "file": "cotton_tomato.pth",
             "type": "torch",
@@ -25,14 +40,6 @@
             "classes": {
                 "0": "Cotton/Tomato Class 0 (UPDATE ME)",
                 "1": "Cotton/Tomato Class 1 (UPDATE ME)"
-            }
-        },
-        "corn_blackgram": {
-            "file": "corn_blackgram.h5",
-            "type": "tensorflow",
-            "classes": {
-                "0": "Corn/Blackgram Class 0 (UPDATE ME)",
-                "1": "Corn/Blackgram Class 1 (UPDATE ME)"
             }
         },
         "pumpkin_wheat": {

@@ -452,6 +452,9 @@ def dashboard_page():
     # =====================================================
     # 🔍 ANALYSIS TAB
     # =====================================================
+    # =====================================================
+    # 🔍 ANALYSIS TAB
+    # =====================================================
     with tab_analysis:
         st.markdown("### AI Disease Diagnosis")
 
@@ -464,14 +467,29 @@ def dashboard_page():
         with open(config_path) as f:
             config = json.load(f)
 
-        selected_model_name = list(config['models'].keys())[0]
+        # --- NEW: CROP SELECTION UI ---
+        # This allows the user to switch between Rice/Potato and Corn/Blackgram
+        model_options = {
+            "Rice & Potato": "rice_potato",
+            "Corn & Blackgram": "corn_blackgram"
+        }
+        
+        col_select, _ = st.columns([2, 2])
+        with col_select:
+            selected_display_name = st.selectbox(
+                "🎯 Select Crop Category",
+                options=list(model_options.keys())
+            )
+        
+        # This is the internal key used for config and preprocessing logic
+        selected_model_name = model_options[selected_display_name]
 
         st.markdown("---")
 
         left, center, right = st.columns([1,6,1])
 
         with center:
-            st.info("📸 Upload a clear leaf image")
+            st.info(f"📸 Upload a clear leaf image for {selected_display_name}")
 
             uploaded_file = st.file_uploader(
                 "🌿 Upload Leaf Image — JPG / PNG (Max 5MB)",
@@ -493,13 +511,21 @@ def dashboard_page():
 
                 with st.spinner('Scanning leaf tissues...'):
 
+                    # Load the specific model chosen by the user
                     model, model_type = load_model(selected_model_name)
 
                     if not model:
                         st.error("Model failed to load.")
                         return
 
-                    processed_img = preprocess_image(image, model_type)
+                    # --- CRITICAL CHANGE ---
+                    # We now pass selected_model_name as the model_key 
+                    # so preprocess.py knows whether to use ResNet or EfficientNet math.
+                    processed_img = preprocess_image(
+                        image, 
+                        model_type=model_type, 
+                        model_key=selected_model_name
+                    )
 
                     try:
                         predictions = predict_image(model, model_type, processed_img)
@@ -515,7 +541,7 @@ def dashboard_page():
                         )
 
                         if "healthy" in predicted_label.lower():
-                            st.success("**Status: HEALTHY**")
+                            st.success(f"**Status: {predicted_label.upper()}**")
                             st.balloons()
                         else:
                             st.error(f"**Detected: {predicted_label.upper()}**")
