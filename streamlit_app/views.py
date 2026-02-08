@@ -2,12 +2,22 @@ import streamlit as st
 import time
 import pandas as pd
 import numpy as np
-from PIL import Image
 import json
 import os
 import base64
 import altair as alt
 from pathlib import Path
+from io import BytesIO
+from PIL import Image
+import plotly.express as px
+import plotly.graph_objects as go
+from datetime import datetime # Moved from inside the function
+
+# Helper function to convert uploaded images for the HTML display
+def image_to_base64(image):
+    buffered = BytesIO()
+    image.save(buffered, format="PNG")
+    return base64.b64encode(buffered.getvalue()).decode()
 
 # --- IMPORTS FROM OUR APP STRUCTURE ---
 from auth import authenticate_user, create_user
@@ -349,55 +359,63 @@ def dashboard_page():
         background:rgba(255,255,255,0.05);
     }}
 
-    section[data-testid="stFileUploaderDropzone"] {{
-        padding:3rem !important;
+    /* --- DASHBOARD BUTTONS FIX (MATCHING LOGIN PAGE) --- */
+    div.stButton > button {{
+        background: linear-gradient(90deg, #22d3ee, #34d399) !important;
+        color: #000000 !important;
+        font-weight: 800 !important;
+        border: none !important;
+        border-radius: 12px !important;
+        padding: 0.6rem 1.2rem !important;
+        transition: all 0.3s ease !important;
     }}
 
-    [data-testid="stFileUploader"] small {{
-        white-space:normal !important;
-        display:block !important;
-        color:#d1fae5 !important;
+    div.stButton > button:hover {{
+        transform: scale(1.02) !important;
+        box-shadow: 0 0 15px rgba(52, 211, 153, 0.5) !important;
+        color: #000000 !important;
     }}
 
-    [data-testid="stFileUploader"] button{{
-        background:linear-gradient(135deg,#00FFC6,#00E0FF) !important;
-        color:black !important;
-        font-weight:800 !important;
-        border-radius:14px !important;
-        border:none !important;
+    /* Ensure button text remains black */
+    div.stButton > button p {{
+        color: #000000 !important;
+        font-weight: 800 !important;
+    }}
+
+    /* Dropdown/Selectbox Visibility Fix */
+    .stSelectbox div[data-baseweb="select"] > div {{
+        background-color: rgba(255, 255, 255, 0.1) !important;
+        color: white !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    }}
+    
+    div[data-baseweb="popover"] ul {{
+        background-color: #1a1a1a !important;
     }}
     </style>
     """, unsafe_allow_html=True)
 
     # --- SIDEBAR ---
     with st.sidebar:
-
         if os.path.exists("assets/logo.png"):
             st.image("assets/logo.png", width=120)
-
         st.markdown(f"## 👨‍🌾 {user['name']}")
-
         if user.get('join_date'):
             st.caption(f"Member since: {user['join_date'].split(' ')[0]}")
-
         st.markdown("---")
-
         if st.button("🚪 Logout", use_container_width=True):
             from auth import logout
             logout()
 
     # --- MAIN ---
     st.title("🌿 AgriDetectAI Dashboard")
-    # --- LOGOUT BUTTON (Styled like Login Button) ---
-    # --- SMALL LOGOUT BUTTON TOP-RIGHT ---
-    col1, col2 = st.columns([9, 1])  # Push button to right
+    col1, col2 = st.columns([9, 1])
     with col2:
         if st.button("🚪", help="Logout"):
             st.session_state['authenticated'] = False
             st.session_state['user'] = None
             st.session_state['page'] = 'landing'
             st.rerun()
-
 
     tab_home, tab_profile, tab_analysis, tab_connect, tab_climate, tab_analytics, tab_history, tab_about = st.tabs([
         "🏠 Home", "👤 Profile", "🔍 Analysis", "🤝 AgriConnect", "🌦️ Climate", "📊 Analytics", "📜 History", "ℹ️ About"
@@ -407,47 +425,349 @@ def dashboard_page():
     # 🏠 HOME TAB
     # =====================================================
     with tab_home:
-        st.header("🏠 Welcome to AgriDetectAI")
-        st.markdown(f"""
-        Hello **{user['name']}**, welcome back to your farm intelligence dashboard! 🌿
+        # --- 0. SETUP VARIABLES ---
+        # Map your existing user dictionary to the variable name used in the new design
+        username = user['name'] 
 
-        Here you can:
-        - Upload leaf images to detect diseases instantly.
-        - Monitor your local climate and receive early disease alerts.
-        - Track historical analysis and yield projections.
-        - Connect with the AgriConnect community for advice and discussions.
+        # --- 1. CUSTOM CSS FOR THIS TAB ---
+        st.markdown("""
+        <style>
+        /* Section Headers */
+        .section-title {
+            font-size: 1.8rem;
+            font-weight: 800;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            background: linear-gradient(90deg, #34d399, #22d3ee);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        /* Stat Cards (Achievements) */
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            transition: transform 0.3s;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.1);
+            border-color: #34d399;
+        }
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: white;
+        }
+        .stat-label {
+            color: #cbd5e1;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
 
-        💡 **Tip:** Keep your crop images clear and well-lit for the most accurate AI predictions.
-        """)
+        /* Testimonial Cards */
+        .review-card {
+            background: rgba(20, 20, 30, 0.6);
+            border-left: 4px solid #34d399;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .review-text {
+            font-style: italic;
+            color: #e2e8f0;
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+        .review-author {
+            margin-top: 15px;
+            font-weight: bold;
+            color: #34d399;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Footer */
+        .custom-footer {
+            margin-top: 80px;
+            padding-top: 40px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            text-align: center;
+            color: #94a3b8;
+        }
+        
+        /* Footer Links */
+        .footer-links a {
+            color: #94a3b8;
+            margin: 0 10px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.3s;
+        }
+        .footer-links a:hover {
+            color: #34d399;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
+        # --- 2. WELCOME HERO ---
+        st.markdown(f"<h1 style='font-size: 3rem; margin-bottom: 0;'>👋 Welcome back, {username}!</h1>", unsafe_allow_html=True)
+        st.markdown("<p style='color: #cbd5e1; font-size: 1.2rem;'>Here is what's happening on your farm today.</p>", unsafe_allow_html=True)
+        
+        st.markdown("---")
+
+        # --- 3. LIVE STATUS (The Green/Red Cards) ---
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown("""
+            <div class="stat-card" style="display: flex; align-items: center; justify-content: space-between;">
+                <div style="text-align: left;">
+                    <h3 style="margin:0;">🌾 Active Crops</h3>
+                    <p style="color: #cbd5e1; margin:0;">Rice (Sona Masoori), Potato</p>
+                </div>
+                <div style="font-size: 2.5rem;">🚜</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with c2:
+            st.markdown("""
+            <div class="stat-card" style="display: flex; align-items: center; justify-content: space-between; border-color: #34d399;">
+                <div style="text-align: left;">
+                    <h3 style="margin:0; color: #34d399;">🛡️ System Status</h3>
+                    <p style="color: #cbd5e1; margin:0;">AI Model Online & Ready</p>
+                </div>
+                <div style="font-size: 2.5rem;">✅</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # --- 4. COMPANY ACHIEVEMENTS (Grid Layout) ---
+        st.markdown('<div class="section-title">🚀 Our Impact</div>', unsafe_allow_html=True)
+        
+        ac1, ac2, ac3, ac4 = st.columns(4)
+        with ac1:
+            st.markdown("""
+            <div class="stat-card">
+                <div class="stat-number">15k+</div>
+                <div class="stat-label">Scans Performed</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with ac2:
+            st.markdown("""
+            <div class="stat-card">
+                <div class="stat-number">96%</div>
+                <div class="stat-label">Accuracy Rate</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with ac3:
+            st.markdown("""
+            <div class="stat-card">
+                <div class="stat-number">50+</div>
+                <div class="stat-label">Villages Covered</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with ac4:
+            st.markdown("""
+            <div class="stat-card">
+                <div class="stat-number">24/7</div>
+                <div class="stat-label">Expert Support</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # --- 5. FARMER REVIEWS ---
+        st.markdown('<div class="section-title">💬 What Farmers Say</div>', unsafe_allow_html=True)
+        
+        rc1, rc2 = st.columns(2)
+        
+        with rc1:
+            st.markdown("""
+            <div class="review-card">
+                <div class="review-text">"I used to lose 30% of my potato crop to Blight every year. AgriDetect diagnosed it early, and the suggested spray saved my harvest!"</div>
+                <div class="review-author">👤 Ramesh Reddy <span style="font-weight:normal; color:#64748b; font-size:0.9rem;">(Warangal)</span></div>
+            </div>
+            <div class="review-card">
+                <div class="review-text">"The interface is so simple, even my father can use it. The Telugu language support would be great in the future!"</div>
+                <div class="review-author">👤 Sita Lakshmi <span style="font-weight:normal; color:#64748b; font-size:0.9rem;">(Karimnagar)</span></div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+        with rc2:
+            st.markdown("""
+            <div class="review-card">
+                <div class="review-text">"Government schemes section is very helpful. I didn't know I was eligible for the PM-Kisan subsidy until I checked here."</div>
+                <div class="review-author">👤 Krishna Rao <span style="font-weight:normal; color:#64748b; font-size:0.9rem;">(Nalgonda)</span></div>
+            </div>
+            <div class="review-card">
+                <div class="review-text">"Best app for Rice Blast detection. The chemical dosage recommendations are very accurate."</div>
+                <div class="review-author">👤 Venkat Goud <span style="font-weight:normal; color:#64748b; font-size:0.9rem;">(Khammam)</span></div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # --- 6. FOOTER ---
+        st.markdown("""
+        <div class="custom-footer">
+            <div style="font-size: 1.5rem; font-weight: 800; margin-bottom: 20px;">
+                AgriDetect<span style="color: #34d399;">AI</span>
+            </div>
+            <div class="footer-links">
+                <a href="#">About Us</a>
+                <a href="#">Privacy Policy</a>
+                <a href="#">Terms of Service</a>
+                <a href="#">Contact Support</a>
+            </div>
+            <p style="margin-top: 30px; font-size: 0.8rem; opacity: 0.6;">
+                © 2026 AgriDetectAI · AI for Smarter Agriculture 🌱 <br>
+                Designed with ❤️ for Indian Farmers.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
         
 
     # =====================================================
     # 👤 PROFILE TAB
     # =====================================================
     with tab_profile:
-        st.header("👤 User Profile")
-        
-        st.subheader("Personal Information")
-        st.markdown(f"""
-        **Name:** {user['name']}  
-        **Email:** {user.get('email', 'Not Provided')}  
-        **Joined On:** {user.get('join_date', 'N/A').split(' ')[0]}  
-        """)
-        
-        st.subheader("Farm Details")
+        # --- 0. SETUP DATA ---
+        # We try to get the user from session state to allow updates, 
+        # otherwise fallback to the passed 'user' dictionary
+        user_data = st.session_state.get('user', user)
+        real_fullname = user_data.get('name', 'Farmer')
+        # specific logic to handle date formats safely
+        join_date_raw = str(user_data.get('created_at', '2026-01-01'))
+        real_join_date = join_date_raw.split(' ')[0]
+
+        # --- 1. CUSTOM CSS FOR PROFILE ---
         st.markdown("""
-        - Farm Size: 5 hectares  
-        - Main Crops: Rice, Potato, Tomato  
-        - Location: Not Provided  
-        """)
+        <style>
+        /* UPLOAD BUTTON STYLING */
+        [data-testid="stFileUploader"] button {
+            background: linear-gradient(90deg, #22d3ee, #34d399) !important;
+            color: #020617 !important;
+            font-weight: 800 !important;
+            border: none !important;
+            padding: 8px 20px !important;
+            border-radius: 8px !important;
+        }
+        [data-testid="stFileUploader"] button:hover {
+            transform: scale(1.02) !important;
+            box-shadow: 0 0 15px rgba(52, 211, 153, 0.5) !important;
+        }
+        [data-testid="stFileUploader"] { color: white !important; }
+        [data-testid="stFileUploader"] small { color: #e2e8f0 !important; }
+        [data-testid="stFileUploader"] span { color: white !important; }
         
-        st.subheader("Account Settings")
-        st.markdown("""
-        You can update your account preferences, change your password, or connect with other farmers through AgriConnect.  
-        """)
+        [data-testid="stFileUploader"] section {
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 2px dashed rgba(52, 211, 153, 0.5);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        /* INPUT FIELDS STYLING */
+        .stTextInput input, .stSelectbox div[data-baseweb="select"] > div {
+            background-color: rgba(255, 255, 255, 0.9) !important;
+            color: black !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+            border-radius: 8px !important;
+        }
+
+        /* PROFILE CARD STYLING */
+        .profile-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 24px;
+            padding: 40px 20px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+        .avatar-circle {
+            width: 140px; height: 140px; margin: 0 auto 20px auto;
+            background: linear-gradient(135deg, #34d399, #22d3ee);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 4rem; border: 4px solid rgba(255,255,255,0.2); overflow: hidden;
+        }
+        .avatar-img { width: 100%; height: 100%; object-fit: cover; }
         
-        if st.button("Update Profile"):
-            st.success("Profile update page coming soon!")
+        /* ACTION BUTTONS */
+        div.stButton > button {
+            background: rgba(255, 255, 255, 0.1) !important;
+            color: white !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
+        # --- 2. HEADER ---
+        st.markdown("<h1 style='margin-bottom: 10px;'>👤 My <span style='color:#34d399'>Profile</span></h1>", unsafe_allow_html=True)
+        
+        c1, c2 = st.columns([1, 2], gap="large")
+
+        # --- 3. LEFT COLUMN: AVATAR CARD ---
+        with c1:
+            uploaded_avatar = st.file_uploader("Change Picture", type=['jpg', 'png', 'jpeg'], label_visibility="collapsed")
+            
+            # Default Emoji Avatar
+            inner_avatar_html = "👨‍🌾"
+            
+            # If image uploaded, convert to Base64 to display inside HTML
+            if uploaded_avatar is not None:
+                image = Image.open(uploaded_avatar)
+                img_b64 = image_to_base64(image)
+                inner_avatar_html = f'<img src="data:image/png;base64,{img_b64}" class="avatar-img">'
+
+            st.markdown(f"""
+            <div class="profile-card">
+                <div style="background: #fbbf24; color: #020617; padding: 6px 16px; border-radius: 50px; font-size: 0.75rem; font-weight: 800; display: inline-block; margin-bottom: 15px;">PRO MEMBER</div>
+                <div class="avatar-circle">{inner_avatar_html}</div>
+                <h2 style="margin:0; color: white; font-weight: 800;">{real_fullname}</h2>
+                <p style="color: #94a3b8; font-size: 0.95rem;">Precision Farmer</p>
+                <p style="color: #cbd5e1; margin-top: 25px; font-size: 0.9rem; line-height: 1.6;">
+                    <b>Joined:</b> {real_join_date}<br>
+                    <b>Location:</b> Nalgonda, TG
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # --- 4. RIGHT COLUMN: EDIT FORM ---
+        with c2:
+            with st.container():
+                st.markdown("### ⚙️ Account Details")
+                
+                col_form1, col_form2 = st.columns(2)
+                with col_form1:
+                    new_name = st.text_input("Full Name", value=real_fullname)
+                    # Use user_data.get('username') or just the passed username for the email handle
+                    user_handle = user_data.get('username', 'farmer')
+                    email = st.text_input("Email", value=f"{user_handle}@agridetect.com", disabled=True)
+                with col_form2:
+                    phone = st.text_input("Phone Number", value="+91 98765 43210")
+                    lang = st.selectbox("App Language", ["English", "Telugu (తెలుగు)", "Hindi (हिंदी)"])
+
+                st.markdown("---")
+                
+                st.markdown("#### 🔔 Notification Preferences")
+                c_t1, c_t2 = st.columns(2)
+                with c_t1: st.toggle("Email Alerts", value=True)
+                with c_t2: st.toggle("Share Analytics", value=False)
+                
+                st.write("")
+                
+                b1, b2 = st.columns([1, 1])
+                with b1:
+                    if st.button("💾 Save Changes"):
+                        # Update session state
+                        if 'user' in st.session_state:
+                            st.session_state['user']['name'] = new_name
+                        st.toast("Profile updated successfully!", icon="✅")
+                        # Rerun to update the name on the left card immediately
+                        st.rerun()
+                with b2: 
+                    st.button("🔑 Change Password")
 
     # =====================================================
     # 🔍 ANALYSIS TAB
@@ -583,23 +903,87 @@ def dashboard_page():
 
     # --- TAB 2: AGRICONNECT ---
     with tab_connect:
-        st.header("🤝 AgriConnect Community")
-        st.markdown("Connect with researchers and neighboring farmers.")
-        
-        # Mock Feed
-        st.subheader("📢 Recent Discussions")
-        
-        with st.container():
-            st.info("**Topic: New Rice Blast Treatment**\n\n*Dr. A. Sharma:* We are seeing good results with Tricyclazole 75% WP. Has anyone else tried it?")
-            st.caption("2 hours ago • 15 replies")
-            
-        with st.container():
-            st.success("**Topic: Potato Yields this Season**\n\n*Farmer John:* My harvest is up 20% thanks to early detection! Checking the soil pH really helped.")
-            st.caption("5 hours ago • 8 replies")
-            
-        st.markdown("---")
-        st.text_input("Ask a question or share an update...", placeholder="Type here...")
-        st.button("Post to Community")
+        root_dir = os.getcwd()
+        feedback_dir = os.path.join(root_dir, "data")
+        feedback_file = os.path.join(feedback_dir, "feedback_log.txt")
+        os.makedirs(feedback_dir, exist_ok=True)
+
+        st.markdown("""
+        <style>
+        h1, h2, h3, h4, h5, p, span, label, div { color: white !important; }
+
+        [data-testid="stForm"] {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* AGRICONNECT BUTTONS FIX (MATCHING LOGIN PAGE) */
+        div[data-testid="stFormSubmitButton"] button {
+            width: 100% !important;
+            background: linear-gradient(90deg, #22d3ee, #34d399) !important;
+            color: #000000 !important;
+            border-radius: 12px !important;
+            font-weight: 800 !important;
+            border: none !important;
+            padding: 0.8rem !important;
+        }
+
+        div[data-testid="stFormSubmitButton"] button:hover {
+            transform: scale(1.02) !important;
+            box-shadow: 0 0 15px rgba(52, 211, 153, 0.5) !important;
+            color: #000000 !important;
+        }
+
+        .stTextInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] > div {
+            background-color: rgba(0, 0, 0, 0.3) !important;
+            color: white !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+            border-radius: 12px !important;
+        }
+
+        .feedback-card {
+            background: rgba(0, 0, 0, 0.2);
+            border-left: 4px solid #34d399;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .user-name { color: #34d399 !important; font-weight: bold; }
+        .feedback-text { color: #e2e8f0 !important; font-style: italic; }
+        </style>
+        """, unsafe_allow_html=True)
+
+        st.markdown("<h1 style='text-align: center;'>💬 Community <span style='color:#34d399'>Feedback</span></h1>", unsafe_allow_html=True)
+        c1, c2 = st.columns([1.5, 1], gap="large")
+
+        with c1:
+            with st.form("user_feedback"):
+                st.markdown("### 📝 Submit Your Review")
+                category = st.radio("Hidden Label", ["🌱 Accuracy", "🐛 Bug", "💡 Feature", "❤️ Other"], horizontal=True, label_visibility="collapsed")
+                col_in1, col_in2 = st.columns(2)
+                with col_in1: name = st.text_input("Your Name (Optional)")
+                with col_in2: crop = st.selectbox("Related Crop", ["General", "Rice", "Potato", "Corn", "Blackgram", "Cotton", "Tomato", "Pumpkin", "Wheat",])
+                subject = st.text_input("Subject")
+                message = st.text_area("Detailed Feedback", height=120)
+                
+                c_r1, c_r2 = st.columns(2)
+                with c_r1: rating = st.slider("Rate Us", 1, 5, 5)
+                with c_r2: accuracy = st.radio("AI Accuracy", ["Yes, Spot on! ✅", "Partially ⚠️", "No, Incorrect ❌"], horizontal=True)
+
+                if st.form_submit_button("🚀 Submit Feedback"):
+                    if message:
+                        st.success("✅ Thank you!"); st.balloons()
+                    else: st.warning("Please enter a message.")
+
+        with c2:
+            st.markdown("### 🌍 Recent Activity")
+            st.markdown("""
+            <div class="feedback-card"><div class="user-name">Venkatesh K.</div><div class="feedback-text">"Rice Blast detection saved my crop!"</div></div>
+            <div class="feedback-card"><div class="user-name">Sarah Jenkins</div><div class="feedback-text">"Great accuracy on Potato Late Blight."</div></div>
+            """, unsafe_allow_html=True)
 
     # --- TAB 3: CLIMATE & ALERTS ---
     with tab_climate:
@@ -635,32 +1019,148 @@ def dashboard_page():
 
     # --- TAB 4: SMART ANALYTICS ---
     with tab_analytics:
-        st.header("📊 Smart Farm Analytics")
-        st.markdown("Visualizing your farm's health and yield potential.")
+        # --- 1. CUSTOM CSS ---
+        st.markdown("""
+        <style>
+        /* KPI CARDS */
+        .kpi-card { 
+            background: rgba(255, 255, 255, 0.05); 
+            backdrop-filter: blur(10px); 
+            border-radius: 15px; 
+            padding: 20px; 
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+            text-align: center; 
+            transition: transform 0.3s; 
+        }
+        .kpi-card:hover { 
+            transform: translateY(-5px); 
+            border-color: #34d399; 
+            box-shadow: 0 10px 20px rgba(52, 211, 153, 0.2); 
+        }
+        .kpi-value { font-size: 2.2rem; font-weight: 800; color: white; margin: 0; }
+        .kpi-label { color: #cbd5e1; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* TABLE STYLES */
+        .chart-container { 
+            background: rgba(0, 0, 0, 0.2); 
+            border-radius: 20px; 
+            padding: 20px; 
+            border: 1px solid rgba(255, 255, 255, 0.05); 
+            margin-bottom: 20px; 
+        }
+        .report-table { width: 100%; border-collapse: collapse; color: #e2e8f0; font-size: 0.9rem; }
+        .report-table th { 
+            text-align: left; 
+            padding: 15px; 
+            border-bottom: 1px solid rgba(255,255,255,0.1); 
+            color: #34d399; 
+            text-transform: uppercase; 
+            font-size: 0.8rem; 
+        }
+        .report-table td { padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); }
         
-        col1, col2 = st.columns(2)
+        /* STATUS BADGES */
+        .status-badge { padding: 5px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; }
+        .status-high { background: rgba(248, 113, 113, 0.2); color: #f87171; }
+        .status-safe { background: rgba(52, 211, 153, 0.2); color: #34d399; }
+        </style>
+        """, unsafe_allow_html=True)
+
+        # --- 2. HEADER ---
+        st.markdown("<h1 style='text-align: center;'>📊 Farm <span style='color:#34d399'>Analytics</span></h1>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #cbd5e1; margin-bottom: 30px;'>Real-time insights on crop health and yield predictions.</p>", unsafe_allow_html=True)
+
+        # --- 3. KPI SECTION ---
+        k1, k2, k3, k4 = st.columns(4)
+        with k1: st.markdown('<div class="kpi-card"><div class="kpi-label">Total Scans</div><div class="kpi-value">1,248</div><div style="color: #34d399; font-size: 0.8rem;">▲ 12% this week</div></div>', unsafe_allow_html=True)
+        with k2: st.markdown('<div class="kpi-card"><div class="kpi-label">Avg Health Score</div><div class="kpi-value">87%</div><div style="color: #34d399; font-size: 0.8rem;">Stable</div></div>', unsafe_allow_html=True)
+        with k3: st.markdown('<div class="kpi-card"><div class="kpi-label">Disease Alerts</div><div class="kpi-value" style="color: #f87171;">14</div><div style="color: #f87171; font-size: 0.8rem;">Requires Action</div></div>', unsafe_allow_html=True)
+        with k4: st.markdown('<div class="kpi-card"><div class="kpi-label">Est. Yield</div><div class="kpi-value">4.2T</div><div style="color: #fbbf24; font-size: 0.8rem;">Potato & Rice</div></div>', unsafe_allow_html=True)
+
+        st.write("") # Spacer
+
+        # --- 4. PREPARE DATA ---
+        yield_data = pd.DataFrame({"Crop": ["Rice", "Potato", "Wheat", "Tomato"], "Yield (Tons)": [45, 60, 30, 25]})
         
-        with col1:
-            st.subheader("Yield Prediction (tons/ha)")
-            # Generate pretty area chart
-            chart_data = pd.DataFrame(
-                np.random.rand(20, 1) * 10 + 50, # Random values between 50-60
-                columns=['Projected Yield']
+        # Creating dummy trend data (you'd replace this with real database queries later)
+        trend_data = pd.DataFrame({
+            "Month": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"], 
+            "Healthy": [80, 85, 82, 88, 90, 87], 
+            "Diseased": [20, 15, 18, 12, 10, 13]
+        })
+
+        # --- 5. CHARTS SECTION ---
+        c1, c2 = st.columns(2)
+        
+        with c1:
+            st.markdown("### 🌾 Crop Yield Forecast")
+            # Bar Chart using Plotly Express
+            fig_yield = px.bar(yield_data, x="Crop", y="Yield (Tons)", color="Crop", color_discrete_sequence=["#34d399", "#22d3ee", "#fbbf24", "#f87171"])
+            
+            # Customizing Layout for Dark Theme/Glass Look
+            fig_yield.update_layout(
+                plot_bgcolor="rgba(0,0,0,0)", 
+                paper_bgcolor="rgba(255, 255, 255, 0.05)", 
+                font=dict(color="white"), 
+                showlegend=False, 
+                xaxis=dict(showgrid=False), 
+                yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.1)"),
+                margin=dict(l=20, r=20, t=20, b=20)
             )
-            st.area_chart(chart_data, color="#4CAF50")
+            st.plotly_chart(fig_yield, use_container_width=True)
+
+        with c2:
+            st.markdown("### 📉 Disease Trends (6 Months)")
+            # Area Chart using Graph Objects
+            fig_trend = go.Figure()
+            fig_trend.add_trace(go.Scatter(x=trend_data["Month"], y=trend_data["Healthy"], fill='tozeroy', mode='lines', name='Healthy', line=dict(width=3, color='#34d399')))
+            fig_trend.add_trace(go.Scatter(x=trend_data["Month"], y=trend_data["Diseased"], fill='tozeroy', mode='lines', name='Diseased', line=dict(width=3, color='#f87171')))
             
-        with col2:
-            st.subheader("Disease Occurrence Rate")
-            # Bar chart
-            disease_data = pd.DataFrame({
-                'Disease': ['Rice Blast', 'Brown Spot', 'Healthy', 'Sheath Blight'],
-                'Occurrences': [12, 5, 45, 8]
-            })
-            st.bar_chart(disease_data.set_index('Disease'))
-            
-        st.markdown("---")
-        st.subheader("💡 Insights")
-        st.success("Your crop health index is **82%**, which is **12% higher** than the regional average.")
+            # Customizing Layout
+            fig_trend.update_layout(
+                plot_bgcolor="rgba(0,0,0,0)", 
+                paper_bgcolor="rgba(255, 255, 255, 0.05)", 
+                font=dict(color="white"), 
+                legend=dict(orientation="h", y=1.1), 
+                xaxis=dict(showgrid=False), 
+                yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.1)"),
+                margin=dict(l=20, r=20, t=20, b=20)
+            )
+            st.plotly_chart(fig_trend, use_container_width=True)
+
+        # --- 6. RECENT REPORTS TABLE ---
+        st.markdown("### 📋 Recent Field Reports")
+        st.markdown("""
+        <div class="chart-container">
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>Scan ID</th>
+                        <th>Date</th>
+                        <th>Crop Type</th>
+                        <th>Diagnosis</th>
+                        <th>Risk Level</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>#SC-2045</td>
+                        <td>Feb 24, 2026</td>
+                        <td>Potato (Kufri)</td>
+                        <td>Early Blight</td>
+                        <td><span class="status-badge status-high">High Risk</span></td>
+                    </tr>
+                    <tr>
+                        <td>#SC-2044</td>
+                        <td>Feb 23, 2026</td>
+                        <td>Rice (Basmati)</td>
+                        <td>Healthy</td>
+                        <td><span class="status-badge status-safe">Safe</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        """, unsafe_allow_html=True)
 
     # --- TAB 5: HISTORY ---
     with tab_history:
