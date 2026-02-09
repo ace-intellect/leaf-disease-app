@@ -1,58 +1,97 @@
+
+
 import streamlit as st
 import tensorflow as tf
 import torch
-from torchvision import models
+import timm
 import os
 import json
+from tensorflow.keras.applications import EfficientNetB0
+from tensorflow.keras.layers import Dense, GlobalAveragePooling2D
+from tensorflow.keras.models import Model
 
-# Load Configuration
+
 CONFIG_PATH = os.path.join("config", "model_config.json")
-with open(CONFIG_PATH, 'r') as f:
+with open(CONFIG_PATH, "r") as f:
     CONFIG = json.load(f)
 
 @st.cache_resource
 def load_model(model_key):
-    """
-    Loads a model (TF or Torch) based on the key from model_config.json.
-    Cached to prevent reloading on every interaction.
-    """
-    if model_key not in CONFIG['models']:
-        st.error(f"Model key '{model_key}' not found in config.")
+
+    if model_key not in CONFIG["models"]:
+        st.error(f"Model key '{model_key}' not found in config")
         return None, None
 
-    model_info = CONFIG['models'][model_key]
-    model_path = os.path.join("models", model_info['file'])
-    model_type = model_info['type']
+    info = CONFIG["models"][model_key]
+    model_path = os.path.join("models", info["file"])
+    model_type = info["type"]
 
-    # --- TENSORFLOW LOADING ---
+    # ---------------- TENSORFLOW ----------------
     if model_type == "tensorflow":
-        try:
-            model = tf.keras.models.load_model(model_path)
-            return model, model_type
-        except Exception as e:
-            st.error(f"Error loading TF model: {e}")
-            return None, model_type
+     try:
+        # Special handling for pumpkin_wheat
+        if model_key == "pumpkin_wheat":
+            base_model = EfficientNetB0(
+                include_top=False,
+                weights=None,
+                input_shape=(224, 224, 3)
+            )
 
-    # --- PYTORCH LOADING ---
-    elif model_type == "torch":
-        try:
-            # User specified EfficientNetB3 for the .pth model
-            model = models.efficientnet_b3(weights=None) 
-            
-            # Load weights (map_location ensures it works even without a GPU)
-            state_dict = torch.load(model_path, map_location=torch.device('cpu'))
-            model.load_state_dict(state_dict)
-            model.eval() # Set to evaluation mode
+            x = base_model.output
+            x = GlobalAveragePooling2D()(x)
+            output = Dense(
+                CONFIG["models"][model_key]["num_classes"],
+                activation="softmax"
+            )(x)
+
+            model = Model(inputs=base_model.input, outputs=output)
+
+            # 🔥 LOAD WEIGHTS (not full model)
+            model.load_weights(model_path)
+
             return model, model_type
+
+        # Normal TF models (rice_potato etc.)
+        model = tf.keras.models.load_model(model_path)
+        return model, model_type
+
+     except Exception as e:
+        st.error(f"Error loading TF model: {e}")
+        return None, model_type
+
+
+    # ---------------- PYTORCH (COTTON/TOMATO) ----------------
+    if model_type == "torch":
+        try:
+            model = timm.create_model(
+                info["architecture"],
+                pretrained=False,
+                num_classes=info.get("num_classes",17)
+            )
+
+            checkpoint = torch.load(model_path, map_location="cpu")
+
+            if "model_state_dict" in checkpoint:
+                state_dict = checkpoint["model_state_dict"]
+            else:
+                state_dict = checkpoint
+
+            model.load_state_dict(state_dict, strict=True)
+            model.eval()
+
+            return model, model_type
+
         except Exception as e:
             st.error(f"Error loading PyTorch model: {e}")
             return None, model_type
 
+
 def predict_image(model, model_type, processed_image):
-    """Runs the prediction and returns the raw probability array."""
+
     if model_type == "tensorflow":
         return model.predict(processed_image)
-    elif model_type == "torch":
+
+    if model_type == "torch":
         with torch.no_grad():
-            output = model(processed_image)
-            return torch.nn.functional.softmax(output, dim=1).numpy()
+            outputs = model(processed_image)
+            return torch.softmax(outputs, dim=1).cpu().numpy()

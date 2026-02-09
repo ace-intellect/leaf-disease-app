@@ -14,6 +14,7 @@ st.set_page_config(
 from utils import init_db
 from views import landing_page, login_page, dashboard_page
 
+
 # --- INITIALIZATION ---
 def init_app():
     # 1. Initialize Database

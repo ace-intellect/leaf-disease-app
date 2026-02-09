@@ -9,6 +9,7 @@ import base64
 import altair as alt
 from pathlib import Path
 
+
 # --- IMPORTS FROM OUR APP STRUCTURE ---
 from auth import authenticate_user, create_user
 from preprocess import preprocess_image
@@ -453,107 +454,117 @@ def dashboard_page():
     # 🔍 ANALYSIS TAB
     # =====================================================
     with tab_analysis:
-        st.markdown("### AI Disease Diagnosis")
+     st.markdown("### AI Disease Diagnosis")
 
-        config_path = os.path.join("config", "model_config.json")
+    # ---------- LOAD CONFIG ----------
+    config_path = os.path.join("config", "model_config.json")
 
-        if not os.path.exists(config_path):
-            st.error("Config file not found!")
-            return
+    if not os.path.exists(config_path):
+        st.error("Config file not found!")
+        return
 
-        with open(config_path) as f:
-            config = json.load(f)
+    with open(config_path) as f:
+        config = json.load(f)
 
-        selected_model_name = list(config['models'].keys())[0]
+    # ---------- MODEL SELECTION UI (LIKE YOUR IMAGE) ----------
+    model_options = {
+        "🌾 Rice & Potato": "rice_potato",
+        "🍅 Cotton & Tomato": "cotton_tomato",
+        "🎃 Pumpkin & Wheat": "pumpkin_wheat"
+    }
 
-        st.markdown("---")
+    col_select, _ = st.columns([2, 2])
 
-        left, center, right = st.columns([1,6,1])
+    with col_select:
+        selected_display_name = st.selectbox(
+            "🎯 Select Crop Category",
+            options=list(model_options.keys())
+        )
 
-        with center:
-            st.info("📸 Upload a clear leaf image")
+    selected_model_name = model_options[selected_display_name]
 
-            uploaded_file = st.file_uploader(
-                "🌿 Upload Leaf Image — JPG / PNG (Max 5MB)",
-                type=["jpg","jpeg","png"]
+    st.markdown("---")
+
+    # ---------- IMAGE UPLOAD ----------
+    left, center, right = st.columns([1, 6, 1])
+
+    with center:
+        st.info("📸 Upload a clear leaf image")
+
+        uploaded_file = st.file_uploader(
+            "🌿 Upload Leaf Image — JPG / PNG (Max 5MB)",
+            type=["jpg", "jpeg", "png"]
+        )
+
+    if uploaded_file is None:
+        return
+
+    image = Image.open(uploaded_file).convert("RGB")
+
+    col1, col2 = st.columns([1, 1.5])
+
+    with col1:
+        st.image(image, caption="Your Upload", use_container_width=True)
+
+    # ---------- PREDICTION ----------
+    with col2:
+        st.markdown("#### 🔬 Diagnosis Report")
+
+        with st.spinner("Scanning leaf tissues..."):
+            model, model_type = load_model(selected_model_name)
+
+            if not model:
+                st.error("Model failed to load.")
+                return
+
+            processed_img = preprocess_image(image, model_type)
+            predictions = predict_image(model, model_type, processed_img)
+
+            class_indices = config["models"][selected_model_name]["classes"]
+
+            predicted_class_index = int(np.argmax(predictions))
+            confidence = float(np.max(predictions)) * 100
+
+            predicted_label = class_indices.get(
+                str(predicted_class_index),
+                f"Class {predicted_class_index}"
             )
 
-        if uploaded_file is not None:
+            # ---------- RESULT ----------
+            if "healthy" in predicted_label.lower():
+                st.success(f"✅ **{predicted_label}**")
+                st.balloons()
+            else:
+                st.error(f"🦠 **{predicted_label}**")
 
-            image = Image.open(uploaded_file)
+            st.caption(f"Confidence: {confidence:.2f}%")
+            st.progress(int(confidence))
 
-            col1, col2 = st.columns([1,1.5])
+            # ---------- PROBABILITY CHART ----------
+            probs = predictions[0]
 
-            with col1:
-                st.image(image, caption='Your Upload', use_container_width=True)
+            df_chart = pd.DataFrame({
+                "Condition": [
+                    class_indices.get(str(i), f"Class {i}")
+                    for i in range(len(probs))
+                ],
+                "Confidence": probs
+            }).sort_values(by="Confidence", ascending=False)
 
-            with col2:
+            chart = alt.Chart(df_chart).mark_bar(
+                cornerRadiusEnd=6
+            ).encode(
+                x=alt.X("Confidence:Q", title=None, axis=alt.Axis(format="%")),
+                y=alt.Y("Condition:N", sort="-x", title=None),
+                color=alt.Color("Confidence:Q", scale=alt.Scale(scheme="blues"), legend=None),
+                tooltip=[
+                    alt.Tooltip("Condition:N"),
+                    alt.Tooltip("Confidence:Q", format=".2%")
+                ]
+            ).properties(height=350)
 
-                st.markdown("#### 🔬 Diagnosis Report")
+            st.altair_chart(chart, use_container_width=True)
 
-                with st.spinner('Scanning leaf tissues...'):
-
-                    model, model_type = load_model(selected_model_name)
-
-                    if not model:
-                        st.error("Model failed to load.")
-                        return
-
-                    processed_img = preprocess_image(image, model_type)
-
-                    try:
-                        predictions = predict_image(model, model_type, processed_img)
-
-                        class_indices = config['models'][selected_model_name]['classes']
-
-                        predicted_class_index = np.argmax(predictions)
-                        confidence = np.max(predictions) * 100
-
-                        predicted_label = class_indices.get(
-                            str(predicted_class_index),
-                            f"Class {predicted_class_index}"
-                        )
-
-                        if "healthy" in predicted_label.lower():
-                            st.success("**Status: HEALTHY**")
-                            st.balloons()
-                        else:
-                            st.error(f"**Detected: {predicted_label.upper()}**")
-
-                        st.caption(f"Confidence: {confidence:.2f}%")
-                        st.progress(int(confidence))
-
-                        probs = predictions[0]
-
-                        df_chart = pd.DataFrame({
-                            "Condition": [class_indices.get(str(i), f"Class {i}") for i in range(len(probs))],
-                            "Confidence": probs
-                        }).sort_values(by="Confidence", ascending=False)
-
-                        chart = alt.Chart(df_chart).mark_bar(
-                            cornerRadiusEnd=6
-                        ).encode(
-                            x=alt.X('Confidence:Q', title=None, axis=alt.Axis(format='%')),
-                            y=alt.Y('Condition:N', sort='-x', title=None),
-                            color=alt.Color('Confidence:Q', scale=alt.Scale(scheme="blues"), legend=None),
-                            tooltip=[
-                                alt.Tooltip('Condition:N'),
-                                alt.Tooltip('Confidence:Q', format='.2%')
-                            ]
-                        ).properties(height=350)
-
-                        text = chart.mark_text(
-                            align='left',
-                            baseline='middle',
-                            dx=5
-                        ).encode(
-                            text=alt.Text('Confidence:Q', format='.1%')
-                        )
-
-                        st.altair_chart(chart + text, use_container_width=True)
-
-                    except Exception as e:
-                        st.error(f"Prediction Error: {e}")
 
     # --- TAB 2: AGRICONNECT ---
     with tab_connect:

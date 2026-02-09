@@ -21,10 +21,28 @@
         "cotton_tomato": {
             "file": "cotton_tomato.pth",
             "type": "torch",
+            "num_classes":17,
             "architecture": "efficientnet_b3",
+            "img_size":224,
             "classes": {
-                "0": "Cotton/Tomato Class 0 (UPDATE ME)",
-                "1": "Cotton/Tomato Class 1 (UPDATE ME)"
+                "0": "Tomato Bacterial Spot",
+                "1": "Tomato Early Blight",
+                "2": "Tomato Late Blight",
+                "3": "Tomato Leaf Mold",
+                "4": "Tomato Septoria Leaf Spot",
+                "5": "Tomato Spider Mites (Two Spotted Spider Mite)",
+                "6": "Tomato Target Spot",
+                "7": "Tomato Yellow Leaf Curl Virus",
+                "8": "Tomato Mosaic Virus",
+                "9": "Tomato Healthy",
+                "10": "Cotton Bacterial Blight",
+                "11": "Cotton Curl Virus",
+                "12": "Cotton Healthy Leaf",
+                "13": "Cotton Herbicide Growth Damage",
+                "14": "Cotton Leaf Hopper (Jassids)",
+                "15": "Cotton Leaf Redding",
+                "16": "Cotton Leaf Variegation"
+                 
             }
         },
         "corn_blackgram": {
@@ -36,11 +54,28 @@
             }
         },
         "pumpkin_wheat": {
-            "file": "pumpkin_wheat.h5",
+            "file": "model.weights.h5",
             "type": "tensorflow",
+            "architecture":"efficientnet_b0",
+            "num_classes":16,
             "classes": {
-                "0": "Pumpkin/Wheat Class 0 (UPDATE ME)",
-                "1": "Pumpkin/Wheat Class 1 (UPDATE ME)"
+                "0": "Pumpkin Bacterial Leaf Spot",
+                "1": "Pumpkin Downy Mildew",
+                "2": "Pumpkin Healthy",
+                "3": "Pumpkin Mosaic Disease",
+                "4": "Pumpkin Powdery Mildew",
+
+                "5": "Wheat Black Rust",
+                "6": "Wheat Blast",
+                "7": "Wheat Fusarium Head Blight",
+                "8": "Wheat Healthy",
+                "9": "Wheat Leaf Disease",
+                "10": "Wheat Mildew",
+                "11": "Wheat Pest",
+                "12": "Wheat Root Disease",
+                "13": "Wheat Rust",
+                "14": "Wheat Smut",
+                "15": "Wheat Stem Fly"
             }
         }
     }

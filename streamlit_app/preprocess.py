@@ -33,8 +33,12 @@ def preprocess_image(image, model_type="tensorflow", target_size=(224, 224)):
     elif model_type == "torch":
         transform = transforms.Compose([
             transforms.Resize(target_size),
-            transforms.ToTensor(), # This converts 0-255 to 0-1
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]) # ImageNet standards
+            transforms.ToTensor(),
+            transforms.Normalize(
+            mean=[0.485, 0.456, 0.406],
+            std=[0.229, 0.224, 0.225]) # This converts 0-255 to 0-1
+             # ImageNet standards
         ])
         img_tensor = transform(image).unsqueeze(0)
         return img_tensor
+    
