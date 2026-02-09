@@ -49,15 +49,20 @@
             "file": "corn_blackgram.h5",
             "type": "tensorflow",
             "classes": {
-                "0": "Corn/Blackgram Class 0 (UPDATE ME)",
-                "1": "Corn/Blackgram Class 1 (UPDATE ME)"
+                "0": "Blackgram Anthracnose",
+                "1": "Blackgram LeafCrinckle",
+                "2": "Blackgram LeafCrinckle",
+                "3": "Blackgram PowderyMildew",
+                "4": "Blackgram YellowMossaic",
+                "5": "Corn Blight",
+                "6": "Corn CommonRust",
+                "7": "Corn GrayLeafSpot",
+                "8": "Corn Healthy"
             }
         },
         "pumpkin_wheat": {
             "file": "model.weights.h5",
             "type": "tensorflow",
-            "architecture":"efficientnet_b0",
-            "num_classes":16,
             "classes": {
                 "0": "Pumpkin Bacterial Leaf Spot",
                 "1": "Pumpkin Downy Mildew",

@@ -468,9 +468,9 @@ def dashboard_page():
 
     # ---------- MODEL SELECTION UI (LIKE YOUR IMAGE) ----------
     model_options = {
-        "🌾 Rice & Potato": "rice_potato",
-        "🍅 Cotton & Tomato": "cotton_tomato",
-        "🎃 Pumpkin & Wheat": "pumpkin_wheat"
+        "Rice & Potato": "rice_potato",
+        "Corn & Blackgram": "corn_blackgram",
+        "Cotton & Tomato": "cotton_tomato",
     }
 
     col_select, _ = st.columns([2, 2])
