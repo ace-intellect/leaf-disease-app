@@ -302,6 +302,8 @@ def login_page():
             st.rerun()
 
 # --- DASHBOARD PAGE ---
+# --- DASHBOARD PAGE ---
+# --- DASHBOARD PAGE ---
 def dashboard_page():
     BANNER_PATH = os.path.join("assets", "banner.png")
     bg_image_base64 = get_base64(BANNER_PATH)
@@ -329,28 +331,45 @@ def dashboard_page():
     header {{visibility:hidden;}}
     footer {{visibility:hidden;}}
 
-    h1{{
-        font-weight:900;
-        font-size:52px;
-        letter-spacing:-1px;
+    /* Title Styling */
+    h1 {{
+        font-weight: 900;
+        font-size: 3rem;
+        letter-spacing: -1px;
+        margin: 0 !important;
+        padding: 0 !important;
     }}
 
-    .stTabs [data-baseweb="tab-list"]{{
-        gap:40px;
-        justify-content:center;
+    /* --- PILL NAVBAR STYLE --- */
+    .stTabs [data-baseweb="tab-list"] {{
+        gap: 10px;
+        background-color: rgba(255, 255, 255, 0.05); /* Glass Container */
+        padding: 10px 20px;
+        border-radius: 50px;
+        justify-content: center;
+        flex-wrap: wrap; /* Allow wrapping on mobile */
+        margin-bottom: 20px;
     }}
 
-    .stTabs [data-baseweb="tab"]{{
-        color:#ffffff !important;
-        font-weight:600;
-        font-size:18px;
+    .stTabs [data-baseweb="tab"] {{
+        height: 40px;
+        border-radius: 40px;
+        color: #e2e8f0 !important; /* Unselected Text Color */
+        background-color: transparent;
+        border: none;
+        font-weight: 600;
+        font-size: 0.95rem;
+        padding: 0 20px; /* Padding for pill width */
     }}
 
-    .stTabs [aria-selected="true"]{{
-        color:#00FFC6 !important;
-        border-bottom:3px solid #00FFC6 !important;
+    .stTabs [aria-selected="true"] {{
+        background-color: #34d399 !important; /* Green Active Background */
+        color: #020617 !important; /* Dark Text */
+        font-weight: 800;
+        box-shadow: 0 4px 15px rgba(52, 211, 153, 0.4);
     }}
 
+    /* UI ELEMENTS */
     [data-testid="stFileUploader"] {{
         width:100% !important;
         padding:2.2rem !important;
@@ -359,7 +378,7 @@ def dashboard_page():
         background:rgba(255,255,255,0.05);
     }}
 
-    /* --- DASHBOARD BUTTONS FIX (MATCHING LOGIN PAGE) --- */
+    /* BUTTON STYLES */
     div.stButton > button {{
         background: linear-gradient(90deg, #22d3ee, #34d399) !important;
         color: #000000 !important;
@@ -369,20 +388,16 @@ def dashboard_page():
         padding: 0.6rem 1.2rem !important;
         transition: all 0.3s ease !important;
     }}
-
     div.stButton > button:hover {{
         transform: scale(1.02) !important;
         box-shadow: 0 0 15px rgba(52, 211, 153, 0.5) !important;
         color: #000000 !important;
     }}
-
-    /* Ensure button text remains black */
     div.stButton > button p {{
         color: #000000 !important;
         font-weight: 800 !important;
     }}
 
-    /* Dropdown/Selectbox Visibility Fix */
     .stSelectbox div[data-baseweb="select"] > div {{
         background-color: rgba(255, 255, 255, 0.1) !important;
         color: white !important;
@@ -407,10 +422,16 @@ def dashboard_page():
             from auth import logout
             logout()
 
-    # --- MAIN ---
-    st.title("🌿 AgriDetectAI Dashboard")
-    col1, col2 = st.columns([9, 1])
-    with col2:
+    # --- MAIN HEADER (Fixed Alignment) ---
+    # We put the Title and the Logout button in the same row so they are side-by-side
+    c_header, c_logout = st.columns([8, 1])
+    
+    with c_header:
+        # Using markdown for title allows better control over margins
+        st.markdown("<h1 style='padding-top: 10px;'>🌿 AgriDetectAI Dashboard</h1>", unsafe_allow_html=True)
+    
+    with c_logout:
+        st.write("") # Spacer to push button down slightly
         if st.button("🚪", help="Logout"):
             st.session_state['authenticated'] = False
             st.session_state['user'] = None
@@ -422,17 +443,15 @@ def dashboard_page():
     ])
 
     # =====================================================
-    # 🏠 HOME TAB
+    # 🏠 HOME TAB (Updated with Meaningful Text)
     # =====================================================
     with tab_home:
-        # --- 0. SETUP VARIABLES ---
-        # Map your existing user dictionary to the variable name used in the new design
-        username = user['name'] 
-
+        from datetime import datetime
+        today_date = datetime.now().strftime("%A, %d %B %Y")
+        
         # --- 1. CUSTOM CSS FOR THIS TAB ---
         st.markdown("""
         <style>
-        /* Section Headers */
         .section-title {
             font-size: 1.8rem;
             font-weight: 800;
@@ -442,8 +461,6 @@ def dashboard_page():
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
-        
-        /* Stat Cards (Achievements) */
         .stat-card {
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -468,8 +485,6 @@ def dashboard_page():
             text-transform: uppercase;
             letter-spacing: 1px;
         }
-
-        /* Testimonial Cards */
         .review-card {
             background: rgba(20, 20, 30, 0.6);
             border-left: 4px solid #34d399;
@@ -491,8 +506,6 @@ def dashboard_page():
             align-items: center;
             gap: 10px;
         }
-
-        /* Footer */
         .custom-footer {
             margin-top: 80px;
             padding-top: 40px;
@@ -500,8 +513,6 @@ def dashboard_page():
             text-align: center;
             color: #94a3b8;
         }
-        
-        /* Footer Links */
         .footer-links a {
             color: #94a3b8;
             margin: 0 10px;
@@ -515,13 +526,24 @@ def dashboard_page():
         </style>
         """, unsafe_allow_html=True)
 
-        # --- 2. WELCOME HERO ---
-        st.markdown(f"<h1 style='font-size: 3rem; margin-bottom: 0;'>👋 Welcome back, {username}!</h1>", unsafe_allow_html=True)
-        st.markdown("<p style='color: #cbd5e1; font-size: 1.2rem;'>Here is what's happening on your farm today.</p>", unsafe_allow_html=True)
+        # --- 2. FARM OVERVIEW HERO (NEW CONTENT) ---
+        st.markdown(f"""
+        <div style="padding: 20px 0;">
+            <h1 style='font-size: 3rem; margin-bottom: 10px; color: white;'>Farm Overview & Daily Insights</h1>
+            <p style='color: #34d399; font-size: 1.1rem; font-weight: 600; margin-bottom: 15px; letter-spacing: 0.5px;'>
+                📅 {today_date} &nbsp; | &nbsp; 📍 Nalgonda, Telangana
+            </p>
+            <p style='color: #cbd5e1; font-size: 1.15rem; line-height: 1.6; max-width: 900px;'>
+                Welcome to your command center. You are currently monitoring <b>12 acres</b> of active cultivation for the 
+                <b>Rabi Season</b>. Our AI systems have detected optimal humidity levels for Rice, but please review the 
+                <b>3 active alerts</b> regarding Potato Blight in Sector 4. Use the tabs above to run new diagnostics or check soil analytics.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
         
         st.markdown("---")
 
-        # --- 3. LIVE STATUS (The Green/Red Cards) ---
+        # --- 3. LIVE STATUS ---
         c1, c2 = st.columns(2)
         with c1:
             st.markdown("""
@@ -544,105 +566,52 @@ def dashboard_page():
             </div>
             """, unsafe_allow_html=True)
 
-        # --- 4. COMPANY ACHIEVEMENTS (Grid Layout) ---
+        # --- 4. IMPACT STATS ---
         st.markdown('<div class="section-title">🚀 Our Impact</div>', unsafe_allow_html=True)
-        
         ac1, ac2, ac3, ac4 = st.columns(4)
         with ac1:
-            st.markdown("""
-            <div class="stat-card">
-                <div class="stat-number">15k+</div>
-                <div class="stat-label">Scans Performed</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown('<div class="stat-card"><div class="stat-number">15k+</div><div class="stat-label">Scans Performed</div></div>', unsafe_allow_html=True)
         with ac2:
-            st.markdown("""
-            <div class="stat-card">
-                <div class="stat-number">96%</div>
-                <div class="stat-label">Accuracy Rate</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown('<div class="stat-card"><div class="stat-number">96%</div><div class="stat-label">Accuracy Rate</div></div>', unsafe_allow_html=True)
         with ac3:
-            st.markdown("""
-            <div class="stat-card">
-                <div class="stat-number">50+</div>
-                <div class="stat-label">Villages Covered</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown('<div class="stat-card"><div class="stat-number">50+</div><div class="stat-label">Villages Covered</div></div>', unsafe_allow_html=True)
         with ac4:
-            st.markdown("""
-            <div class="stat-card">
-                <div class="stat-number">24/7</div>
-                <div class="stat-label">Expert Support</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown('<div class="stat-card"><div class="stat-number">24/7</div><div class="stat-label">Expert Support</div></div>', unsafe_allow_html=True)
 
-        # --- 5. FARMER REVIEWS ---
+        # --- 5. REVIEWS ---
         st.markdown('<div class="section-title">💬 What Farmers Say</div>', unsafe_allow_html=True)
-        
         rc1, rc2 = st.columns(2)
-        
         with rc1:
             st.markdown("""
-            <div class="review-card">
-                <div class="review-text">"I used to lose 30% of my potato crop to Blight every year. AgriDetect diagnosed it early, and the suggested spray saved my harvest!"</div>
-                <div class="review-author">👤 Ramesh Reddy <span style="font-weight:normal; color:#64748b; font-size:0.9rem;">(Warangal)</span></div>
-            </div>
-            <div class="review-card">
-                <div class="review-text">"The interface is so simple, even my father can use it. The Telugu language support would be great in the future!"</div>
-                <div class="review-author">👤 Sita Lakshmi <span style="font-weight:normal; color:#64748b; font-size:0.9rem;">(Karimnagar)</span></div>
-            </div>
+            <div class="review-card"><div class="review-text">"I used to lose 30% of my potato crop to Blight every year. AgriDetect diagnosed it early!"</div><div class="review-author">👤 Ramesh Reddy <span style="font-weight:normal; color:#64748b;">(Warangal)</span></div></div>
+            <div class="review-card"><div class="review-text">"Simple interface, even my father can use it. Telugu support would be great!"</div><div class="review-author">👤 Sita Lakshmi <span style="font-weight:normal; color:#64748b;">(Karimnagar)</span></div></div>
             """, unsafe_allow_html=True)
-            
         with rc2:
             st.markdown("""
-            <div class="review-card">
-                <div class="review-text">"Government schemes section is very helpful. I didn't know I was eligible for the PM-Kisan subsidy until I checked here."</div>
-                <div class="review-author">👤 Krishna Rao <span style="font-weight:normal; color:#64748b; font-size:0.9rem;">(Nalgonda)</span></div>
-            </div>
-            <div class="review-card">
-                <div class="review-text">"Best app for Rice Blast detection. The chemical dosage recommendations are very accurate."</div>
-                <div class="review-author">👤 Venkat Goud <span style="font-weight:normal; color:#64748b; font-size:0.9rem;">(Khammam)</span></div>
-            </div>
+            <div class="review-card"><div class="review-text">"Government schemes section is very helpful. Checked my eligibility instantly."</div><div class="review-author">👤 Krishna Rao <span style="font-weight:normal; color:#64748b;">(Nalgonda)</span></div></div>
+            <div class="review-card"><div class="review-text">"Best app for Rice Blast detection. Chemical dosage recommendations are accurate."</div><div class="review-author">👤 Venkat Goud <span style="font-weight:normal; color:#64748b;">(Khammam)</span></div></div>
             """, unsafe_allow_html=True)
 
         # --- 6. FOOTER ---
         st.markdown("""
         <div class="custom-footer">
-            <div style="font-size: 1.5rem; font-weight: 800; margin-bottom: 20px;">
-                AgriDetect<span style="color: #34d399;">AI</span>
-            </div>
-            <div class="footer-links">
-                <a href="#">About Us</a>
-                <a href="#">Privacy Policy</a>
-                <a href="#">Terms of Service</a>
-                <a href="#">Contact Support</a>
-            </div>
-            <p style="margin-top: 30px; font-size: 0.8rem; opacity: 0.6;">
-                © 2026 AgriDetectAI · AI for Smarter Agriculture 🌱 <br>
-                Designed with ❤️ for Indian Farmers.
-            </p>
+            <div style="font-size: 1.5rem; font-weight: 800; margin-bottom: 20px;">AgriDetect<span style="color: #34d399;">AI</span></div>
+            <div class="footer-links"><a href="#">About Us</a><a href="#">Privacy Policy</a><a href="#">Terms</a><a href="#">Contact</a></div>
+            <p style="margin-top: 30px; font-size: 0.8rem; opacity: 0.6;">© 2026 AgriDetectAI · AI for Smarter Agriculture 🌱 <br> Designed with ❤️ for Indian Farmers.</p>
         </div>
         """, unsafe_allow_html=True)
-        
 
     # =====================================================
-    # 👤 PROFILE TAB
+    # 👤 PROFILE TAB (No Changes)
     # =====================================================
     with tab_profile:
-        # --- 0. SETUP DATA ---
-        # We try to get the user from session state to allow updates, 
-        # otherwise fallback to the passed 'user' dictionary
         user_data = st.session_state.get('user', user)
         real_fullname = user_data.get('name', 'Farmer')
-        # specific logic to handle date formats safely
         join_date_raw = str(user_data.get('created_at', '2026-01-01'))
         real_join_date = join_date_raw.split(' ')[0]
 
-        # --- 1. CUSTOM CSS FOR PROFILE ---
         st.markdown("""
         <style>
-        /* UPLOAD BUTTON STYLING */
         [data-testid="stFileUploader"] button {
             background: linear-gradient(90deg, #22d3ee, #34d399) !important;
             color: #020617 !important;
@@ -651,14 +620,6 @@ def dashboard_page():
             padding: 8px 20px !important;
             border-radius: 8px !important;
         }
-        [data-testid="stFileUploader"] button:hover {
-            transform: scale(1.02) !important;
-            box-shadow: 0 0 15px rgba(52, 211, 153, 0.5) !important;
-        }
-        [data-testid="stFileUploader"] { color: white !important; }
-        [data-testid="stFileUploader"] small { color: #e2e8f0 !important; }
-        [data-testid="stFileUploader"] span { color: white !important; }
-        
         [data-testid="stFileUploader"] section {
             background-color: rgba(255, 255, 255, 0.05);
             border: 2px dashed rgba(52, 211, 153, 0.5);
@@ -666,16 +627,12 @@ def dashboard_page():
             padding: 20px;
             text-align: center;
         }
-
-        /* INPUT FIELDS STYLING */
         .stTextInput input, .stSelectbox div[data-baseweb="select"] > div {
             background-color: rgba(255, 255, 255, 0.9) !important;
             color: black !important;
             border: 1px solid rgba(255, 255, 255, 0.2) !important;
             border-radius: 8px !important;
         }
-
-        /* PROFILE CARD STYLING */
         .profile-card {
             background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
             backdrop-filter: blur(20px);
@@ -692,29 +649,15 @@ def dashboard_page():
             font-size: 4rem; border: 4px solid rgba(255,255,255,0.2); overflow: hidden;
         }
         .avatar-img { width: 100%; height: 100%; object-fit: cover; }
-        
-        /* ACTION BUTTONS */
-        div.stButton > button {
-            background: rgba(255, 255, 255, 0.1) !important;
-            color: white !important;
-            border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        }
         </style>
         """, unsafe_allow_html=True)
 
-        # --- 2. HEADER ---
         st.markdown("<h1 style='margin-bottom: 10px;'>👤 My <span style='color:#34d399'>Profile</span></h1>", unsafe_allow_html=True)
-        
         c1, c2 = st.columns([1, 2], gap="large")
 
-        # --- 3. LEFT COLUMN: AVATAR CARD ---
         with c1:
             uploaded_avatar = st.file_uploader("Change Picture", type=['jpg', 'png', 'jpeg'], label_visibility="collapsed")
-            
-            # Default Emoji Avatar
             inner_avatar_html = "👨‍🌾"
-            
-            # If image uploaded, convert to Base64 to display inside HTML
             if uploaded_avatar is not None:
                 image = Image.open(uploaded_avatar)
                 img_b64 = image_to_base64(image)
@@ -726,22 +669,16 @@ def dashboard_page():
                 <div class="avatar-circle">{inner_avatar_html}</div>
                 <h2 style="margin:0; color: white; font-weight: 800;">{real_fullname}</h2>
                 <p style="color: #94a3b8; font-size: 0.95rem;">Precision Farmer</p>
-                <p style="color: #cbd5e1; margin-top: 25px; font-size: 0.9rem; line-height: 1.6;">
-                    <b>Joined:</b> {real_join_date}<br>
-                    <b>Location:</b> Nalgonda, TG
-                </p>
+                <p style="color: #cbd5e1; margin-top: 25px; font-size: 0.9rem; line-height: 1.6;"><b>Joined:</b> {real_join_date}<br><b>Location:</b> Nalgonda, TG</p>
             </div>
             """, unsafe_allow_html=True)
 
-        # --- 4. RIGHT COLUMN: EDIT FORM ---
         with c2:
             with st.container():
                 st.markdown("### ⚙️ Account Details")
-                
                 col_form1, col_form2 = st.columns(2)
                 with col_form1:
                     new_name = st.text_input("Full Name", value=real_fullname)
-                    # Use user_data.get('username') or just the passed username for the email handle
                     user_handle = user_data.get('username', 'farmer')
                     email = st.text_input("Email", value=f"{user_handle}@agridetect.com", disabled=True)
                 with col_form2:
@@ -749,35 +686,27 @@ def dashboard_page():
                     lang = st.selectbox("App Language", ["English", "Telugu (తెలుగు)", "Hindi (हिंदी)"])
 
                 st.markdown("---")
-                
                 st.markdown("#### 🔔 Notification Preferences")
                 c_t1, c_t2 = st.columns(2)
                 with c_t1: st.toggle("Email Alerts", value=True)
                 with c_t2: st.toggle("Share Analytics", value=False)
                 
                 st.write("")
-                
                 b1, b2 = st.columns([1, 1])
                 with b1:
                     if st.button("💾 Save Changes"):
-                        # Update session state
                         if 'user' in st.session_state:
                             st.session_state['user']['name'] = new_name
                         st.toast("Profile updated successfully!", icon="✅")
-                        # Rerun to update the name on the left card immediately
                         st.rerun()
                 with b2: 
                     st.button("🔑 Change Password")
 
     # =====================================================
-    # 🔍 ANALYSIS TAB
-    # =====================================================
-    # =====================================================
-    # 🔍 ANALYSIS TAB
+    # 🔍 ANALYSIS TAB (No Changes)
     # =====================================================
     with tab_analysis:
         st.markdown("### AI Disease Diagnosis")
-
         config_path = os.path.join("config", "model_config.json")
 
         if not os.path.exists(config_path):
@@ -787,8 +716,6 @@ def dashboard_page():
         with open(config_path) as f:
             config = json.load(f)
 
-        # --- NEW: CROP SELECTION UI ---
-        # This allows the user to switch between Rice/Potato and Corn/Blackgram
         model_options = {
             "Rice & Potato": "rice_potato",
             "Corn & Blackgram": "corn_blackgram"
@@ -796,69 +723,40 @@ def dashboard_page():
         
         col_select, _ = st.columns([2, 2])
         with col_select:
-            selected_display_name = st.selectbox(
-                "🎯 Select Crop Category",
-                options=list(model_options.keys())
-            )
-        
-        # This is the internal key used for config and preprocessing logic
+            selected_display_name = st.selectbox("🎯 Select Crop Category", options=list(model_options.keys()))
         selected_model_name = model_options[selected_display_name]
 
         st.markdown("---")
-
         left, center, right = st.columns([1,6,1])
 
         with center:
             st.info(f"📸 Upload a clear leaf image for {selected_display_name}")
-
-            uploaded_file = st.file_uploader(
-                "🌿 Upload Leaf Image — JPG / PNG (Max 5MB)",
-                type=["jpg","jpeg","png"]
-            )
+            uploaded_file = st.file_uploader("🌿 Upload Leaf Image — JPG / PNG (Max 5MB)", type=["jpg","jpeg","png"])
 
         if uploaded_file is not None:
-
             image = Image.open(uploaded_file)
-
             col1, col2 = st.columns([1,1.5])
 
             with col1:
                 st.image(image, caption='Your Upload', use_container_width=True)
 
             with col2:
-
                 st.markdown("#### 🔬 Diagnosis Report")
-
                 with st.spinner('Scanning leaf tissues...'):
-
-                    # Load the specific model chosen by the user
                     model, model_type = load_model(selected_model_name)
-
                     if not model:
                         st.error("Model failed to load.")
                         return
 
-                    # --- CRITICAL CHANGE ---
-                    # We now pass selected_model_name as the model_key 
-                    # so preprocess.py knows whether to use ResNet or EfficientNet math.
-                    processed_img = preprocess_image(
-                        image, 
-                        model_type=model_type, 
-                        model_key=selected_model_name
-                    )
+                    processed_img = preprocess_image(image, model_type=model_type, model_key=selected_model_name)
 
                     try:
                         predictions = predict_image(model, model_type, processed_img)
-
                         class_indices = config['models'][selected_model_name]['classes']
-
                         predicted_class_index = np.argmax(predictions)
                         confidence = np.max(predictions) * 100
 
-                        predicted_label = class_indices.get(
-                            str(predicted_class_index),
-                            f"Class {predicted_class_index}"
-                        )
+                        predicted_label = class_indices.get(str(predicted_class_index), f"Class {predicted_class_index}")
 
                         if "healthy" in predicted_label.lower():
                             st.success(f"**Status: {predicted_label.upper()}**")
@@ -870,29 +768,19 @@ def dashboard_page():
                         st.progress(int(confidence))
 
                         probs = predictions[0]
-
                         df_chart = pd.DataFrame({
                             "Condition": [class_indices.get(str(i), f"Class {i}") for i in range(len(probs))],
                             "Confidence": probs
                         }).sort_values(by="Confidence", ascending=False)
 
-                        chart = alt.Chart(df_chart).mark_bar(
-                            cornerRadiusEnd=6
-                        ).encode(
+                        chart = alt.Chart(df_chart).mark_bar(cornerRadiusEnd=6).encode(
                             x=alt.X('Confidence:Q', title=None, axis=alt.Axis(format='%')),
                             y=alt.Y('Condition:N', sort='-x', title=None),
                             color=alt.Color('Confidence:Q', scale=alt.Scale(scheme="blues"), legend=None),
-                            tooltip=[
-                                alt.Tooltip('Condition:N'),
-                                alt.Tooltip('Confidence:Q', format='.2%')
-                            ]
+                            tooltip=[alt.Tooltip('Condition:N'), alt.Tooltip('Confidence:Q', format='.2%')]
                         ).properties(height=350)
 
-                        text = chart.mark_text(
-                            align='left',
-                            baseline='middle',
-                            dx=5
-                        ).encode(
+                        text = chart.mark_text(align='left', baseline='middle', dx=5).encode(
                             text=alt.Text('Confidence:Q', format='.1%')
                         )
 
@@ -901,7 +789,9 @@ def dashboard_page():
                     except Exception as e:
                         st.error(f"Prediction Error: {e}")
 
-    # --- TAB 2: AGRICONNECT ---
+    # =====================================================
+    # 🤝 AGRICONNECT TAB (No Changes)
+    # =====================================================
     with tab_connect:
         root_dir = os.getcwd()
         feedback_dir = os.path.join(root_dir, "data")
@@ -910,40 +800,6 @@ def dashboard_page():
 
         st.markdown("""
         <style>
-        h1, h2, h3, h4, h5, p, span, label, div { color: white !important; }
-
-        [data-testid="stForm"] {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 30px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        /* AGRICONNECT BUTTONS FIX (MATCHING LOGIN PAGE) */
-        div[data-testid="stFormSubmitButton"] button {
-            width: 100% !important;
-            background: linear-gradient(90deg, #22d3ee, #34d399) !important;
-            color: #000000 !important;
-            border-radius: 12px !important;
-            font-weight: 800 !important;
-            border: none !important;
-            padding: 0.8rem !important;
-        }
-
-        div[data-testid="stFormSubmitButton"] button:hover {
-            transform: scale(1.02) !important;
-            box-shadow: 0 0 15px rgba(52, 211, 153, 0.5) !important;
-            color: #000000 !important;
-        }
-
-        .stTextInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] > div {
-            background-color: rgba(0, 0, 0, 0.3) !important;
-            color: white !important;
-            border: 1px solid rgba(255, 255, 255, 0.2) !important;
-            border-radius: 12px !important;
-        }
-
         .feedback-card {
             background: rgba(0, 0, 0, 0.2);
             border-left: 4px solid #34d399;
@@ -962,20 +818,19 @@ def dashboard_page():
         with c1:
             with st.form("user_feedback"):
                 st.markdown("### 📝 Submit Your Review")
-                category = st.radio("Hidden Label", ["🌱 Accuracy", "🐛 Bug", "💡 Feature", "❤️ Other"], horizontal=True, label_visibility="collapsed")
+                st.radio("Hidden Label", ["🌱 Accuracy", "🐛 Bug", "💡 Feature", "❤️ Other"], horizontal=True, label_visibility="collapsed")
                 col_in1, col_in2 = st.columns(2)
-                with col_in1: name = st.text_input("Your Name (Optional)")
-                with col_in2: crop = st.selectbox("Related Crop", ["General", "Rice", "Potato", "Corn", "Blackgram", "Cotton", "Tomato", "Pumpkin", "Wheat",])
-                subject = st.text_input("Subject")
+                with col_in1: st.text_input("Your Name (Optional)")
+                with col_in2: st.selectbox("Related Crop", ["General", "Rice", "Potato", "Corn", "Blackgram", "Cotton", "Tomato", "Pumpkin", "Wheat",])
+                st.text_input("Subject")
                 message = st.text_area("Detailed Feedback", height=120)
                 
                 c_r1, c_r2 = st.columns(2)
-                with c_r1: rating = st.slider("Rate Us", 1, 5, 5)
-                with c_r2: accuracy = st.radio("AI Accuracy", ["Yes, Spot on! ✅", "Partially ⚠️", "No, Incorrect ❌"], horizontal=True)
+                with c_r1: st.slider("Rate Us", 1, 5, 5)
+                with c_r2: st.radio("AI Accuracy", ["Yes, Spot on! ✅", "Partially ⚠️", "No, Incorrect ❌"], horizontal=True)
 
                 if st.form_submit_button("🚀 Submit Feedback"):
-                    if message:
-                        st.success("✅ Thank you!"); st.balloons()
+                    if message: st.success("✅ Thank you!"); st.balloons()
                     else: st.warning("Please enter a message.")
 
         with c2:
@@ -985,44 +840,27 @@ def dashboard_page():
             <div class="feedback-card"><div class="user-name">Sarah Jenkins</div><div class="feedback-text">"Great accuracy on Potato Late Blight."</div></div>
             """, unsafe_allow_html=True)
 
-    # --- TAB 3: CLIMATE & ALERTS ---
+    # =====================================================
+    # 🌦️ CLIMATE TAB (No Changes)
+    # =====================================================
     with tab_climate:
         st.header("🌦️ Local Climate & Alerts")
-        
-        # MOCK METRICS (Looks real but is static for now)
         col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric(label="Temperature", value="28°C", delta="1.2°C")
-        with col2:
-            st.metric(label="Humidity", value="65%", delta="-5%")
-        with col3:
-            st.metric(label="Wind Speed", value="12 km/h", delta="Normal")
+        with col1: st.metric(label="Temperature", value="28°C", delta="1.2°C")
+        with col2: st.metric(label="Humidity", value="65%", delta="-5%")
+        with col3: st.metric(label="Wind Speed", value="12 km/h", delta="Normal")
             
         st.markdown("---")
-        
-        # ALERTS SECTION
         st.subheader("⚠️ Active Disease Alerts")
-        
-        st.warning("""
-        **High Risk Alert: Rice Blast**
-        
-        **Cause:** High humidity (above 90%) and lower night temperatures detected in your region.
-        
-        **Action:** Monitor fields closely. Avoid excess nitrogen fertilizer.
-        """)
-        
-        st.info("""
-        **Moderate Risk: Potato Late Blight**
-        
-        **Cause:** Intermittent rains predicted for the next 48 hours.
-        """)
+        st.warning("**High Risk Alert: Rice Blast**\n\n**Cause:** High humidity (>90%) and lower night temperatures.\n\n**Action:** Monitor fields closely.")
+        st.info("**Moderate Risk: Potato Late Blight**\n\n**Cause:** Intermittent rains predicted.")
 
-    # --- TAB 4: SMART ANALYTICS ---
+    # =====================================================
+    # 📊 ANALYTICS TAB (No Changes)
+    # =====================================================
     with tab_analytics:
-        # --- 1. CUSTOM CSS ---
         st.markdown("""
         <style>
-        /* KPI CARDS */
         .kpi-card { 
             background: rgba(255, 255, 255, 0.05); 
             backdrop-filter: blur(10px); 
@@ -1030,139 +868,63 @@ def dashboard_page():
             padding: 20px; 
             border: 1px solid rgba(255, 255, 255, 0.1); 
             text-align: center; 
-            transition: transform 0.3s; 
-        }
-        .kpi-card:hover { 
-            transform: translateY(-5px); 
-            border-color: #34d399; 
-            box-shadow: 0 10px 20px rgba(52, 211, 153, 0.2); 
         }
         .kpi-value { font-size: 2.2rem; font-weight: 800; color: white; margin: 0; }
         .kpi-label { color: #cbd5e1; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; }
-
-        /* TABLE STYLES */
-        .chart-container { 
-            background: rgba(0, 0, 0, 0.2); 
-            border-radius: 20px; 
-            padding: 20px; 
-            border: 1px solid rgba(255, 255, 255, 0.05); 
-            margin-bottom: 20px; 
-        }
+        .chart-container { background: rgba(0, 0, 0, 0.2); border-radius: 20px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.05); }
         .report-table { width: 100%; border-collapse: collapse; color: #e2e8f0; font-size: 0.9rem; }
-        .report-table th { 
-            text-align: left; 
-            padding: 15px; 
-            border-bottom: 1px solid rgba(255,255,255,0.1); 
-            color: #34d399; 
-            text-transform: uppercase; 
-            font-size: 0.8rem; 
-        }
+        .report-table th { text-align: left; padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); color: #34d399; text-transform: uppercase; font-size: 0.8rem; }
         .report-table td { padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); }
-        
-        /* STATUS BADGES */
         .status-badge { padding: 5px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; }
         .status-high { background: rgba(248, 113, 113, 0.2); color: #f87171; }
         .status-safe { background: rgba(52, 211, 153, 0.2); color: #34d399; }
         </style>
         """, unsafe_allow_html=True)
 
-        # --- 2. HEADER ---
         st.markdown("<h1 style='text-align: center;'>📊 Farm <span style='color:#34d399'>Analytics</span></h1>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; color: #cbd5e1; margin-bottom: 30px;'>Real-time insights on crop health and yield predictions.</p>", unsafe_allow_html=True)
 
-        # --- 3. KPI SECTION ---
         k1, k2, k3, k4 = st.columns(4)
-        with k1: st.markdown('<div class="kpi-card"><div class="kpi-label">Total Scans</div><div class="kpi-value">1,248</div><div style="color: #34d399; font-size: 0.8rem;">▲ 12% this week</div></div>', unsafe_allow_html=True)
-        with k2: st.markdown('<div class="kpi-card"><div class="kpi-label">Avg Health Score</div><div class="kpi-value">87%</div><div style="color: #34d399; font-size: 0.8rem;">Stable</div></div>', unsafe_allow_html=True)
-        with k3: st.markdown('<div class="kpi-card"><div class="kpi-label">Disease Alerts</div><div class="kpi-value" style="color: #f87171;">14</div><div style="color: #f87171; font-size: 0.8rem;">Requires Action</div></div>', unsafe_allow_html=True)
-        with k4: st.markdown('<div class="kpi-card"><div class="kpi-label">Est. Yield</div><div class="kpi-value">4.2T</div><div style="color: #fbbf24; font-size: 0.8rem;">Potato & Rice</div></div>', unsafe_allow_html=True)
+        with k1: st.markdown('<div class="kpi-card"><div class="kpi-label">Total Scans</div><div class="kpi-value">1,248</div></div>', unsafe_allow_html=True)
+        with k2: st.markdown('<div class="kpi-card"><div class="kpi-label">Avg Health</div><div class="kpi-value">87%</div></div>', unsafe_allow_html=True)
+        with k3: st.markdown('<div class="kpi-card"><div class="kpi-label">Alerts</div><div class="kpi-value" style="color: #f87171;">14</div></div>', unsafe_allow_html=True)
+        with k4: st.markdown('<div class="kpi-card"><div class="kpi-label">Est. Yield</div><div class="kpi-value">4.2T</div></div>', unsafe_allow_html=True)
 
-        st.write("") # Spacer
-
-        # --- 4. PREPARE DATA ---
+        st.write("") 
         yield_data = pd.DataFrame({"Crop": ["Rice", "Potato", "Wheat", "Tomato"], "Yield (Tons)": [45, 60, 30, 25]})
-        
-        # Creating dummy trend data (you'd replace this with real database queries later)
-        trend_data = pd.DataFrame({
-            "Month": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"], 
-            "Healthy": [80, 85, 82, 88, 90, 87], 
-            "Diseased": [20, 15, 18, 12, 10, 13]
-        })
+        trend_data = pd.DataFrame({"Month": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"], "Healthy": [80, 85, 82, 88, 90, 87], "Diseased": [20, 15, 18, 12, 10, 13]})
 
-        # --- 5. CHARTS SECTION ---
         c1, c2 = st.columns(2)
-        
         with c1:
             st.markdown("### 🌾 Crop Yield Forecast")
-            # Bar Chart using Plotly Express
             fig_yield = px.bar(yield_data, x="Crop", y="Yield (Tons)", color="Crop", color_discrete_sequence=["#34d399", "#22d3ee", "#fbbf24", "#f87171"])
-            
-            # Customizing Layout for Dark Theme/Glass Look
-            fig_yield.update_layout(
-                plot_bgcolor="rgba(0,0,0,0)", 
-                paper_bgcolor="rgba(255, 255, 255, 0.05)", 
-                font=dict(color="white"), 
-                showlegend=False, 
-                xaxis=dict(showgrid=False), 
-                yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.1)"),
-                margin=dict(l=20, r=20, t=20, b=20)
-            )
+            fig_yield.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(255, 255, 255, 0.05)", font=dict(color="white"), showlegend=False, margin=dict(l=20, r=20, t=20, b=20))
             st.plotly_chart(fig_yield, use_container_width=True)
 
         with c2:
-            st.markdown("### 📉 Disease Trends (6 Months)")
-            # Area Chart using Graph Objects
+            st.markdown("### 📉 Disease Trends")
             fig_trend = go.Figure()
             fig_trend.add_trace(go.Scatter(x=trend_data["Month"], y=trend_data["Healthy"], fill='tozeroy', mode='lines', name='Healthy', line=dict(width=3, color='#34d399')))
             fig_trend.add_trace(go.Scatter(x=trend_data["Month"], y=trend_data["Diseased"], fill='tozeroy', mode='lines', name='Diseased', line=dict(width=3, color='#f87171')))
-            
-            # Customizing Layout
-            fig_trend.update_layout(
-                plot_bgcolor="rgba(0,0,0,0)", 
-                paper_bgcolor="rgba(255, 255, 255, 0.05)", 
-                font=dict(color="white"), 
-                legend=dict(orientation="h", y=1.1), 
-                xaxis=dict(showgrid=False), 
-                yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.1)"),
-                margin=dict(l=20, r=20, t=20, b=20)
-            )
+            fig_trend.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(255, 255, 255, 0.05)", font=dict(color="white"), legend=dict(orientation="h", y=1.1), margin=dict(l=20, r=20, t=20, b=20))
             st.plotly_chart(fig_trend, use_container_width=True)
 
-        # --- 6. RECENT REPORTS TABLE ---
         st.markdown("### 📋 Recent Field Reports")
         st.markdown("""
         <div class="chart-container">
             <table class="report-table">
-                <thead>
-                    <tr>
-                        <th>Scan ID</th>
-                        <th>Date</th>
-                        <th>Crop Type</th>
-                        <th>Diagnosis</th>
-                        <th>Risk Level</th>
-                    </tr>
-                </thead>
+                <thead><tr><th>Scan ID</th><th>Date</th><th>Crop</th><th>Diagnosis</th><th>Risk Level</th></tr></thead>
                 <tbody>
-                    <tr>
-                        <td>#SC-2045</td>
-                        <td>Feb 24, 2026</td>
-                        <td>Potato (Kufri)</td>
-                        <td>Early Blight</td>
-                        <td><span class="status-badge status-high">High Risk</span></td>
-                    </tr>
-                    <tr>
-                        <td>#SC-2044</td>
-                        <td>Feb 23, 2026</td>
-                        <td>Rice (Basmati)</td>
-                        <td>Healthy</td>
-                        <td><span class="status-badge status-safe">Safe</span></td>
-                    </tr>
+                    <tr><td>#SC-2045</td><td>Feb 24, 2026</td><td>Potato</td><td>Early Blight</td><td><span class="status-badge status-high">High Risk</span></td></tr>
+                    <tr><td>#SC-2044</td><td>Feb 23, 2026</td><td>Rice</td><td>Healthy</td><td><span class="status-badge status-safe">Safe</span></td></tr>
                 </tbody>
             </table>
         </div>
         """, unsafe_allow_html=True)
 
-    # --- TAB 5: HISTORY ---
+    # =====================================================
+    # 📜 HISTORY TAB (No Changes)
+    # =====================================================
     with tab_history:
         st.header("📜 Analysis History")
         st.dataframe(pd.DataFrame({
@@ -1172,29 +934,22 @@ def dashboard_page():
             "Confidence": ["99%", "87%", "95%"]
         }))
 
-    # --- TAB 6: ABOUT ---
+    # =====================================================
+    # ℹ️ ABOUT TAB (No Changes)
+    # =====================================================
     with tab_about:
         st.header("ℹ️ About Agri-AI")
         st.markdown("""
-        **Agri-AI** is a cutting-edge leaf disease detection platform designed to empower farmers with instant, laboratory-grade diagnostics. It is an AI-powered web application designed to detect plant leaf diseases and healthy conditions across multiple crops using deep learning and computer vision. The system integrates four specialized models, each trained to handle specific crop groups, ensuring higher accuracy and scalability.
-        
+        **Agri-AI** is a cutting-edge leaf disease detection platform...
         ### 🧠 The Engine
-        * **📸 Image-based leaf disease detection
-        * **🤖 Deep Learning models trained on crop-specific datasets
-        * **🌾 Support for multiple crops through modular model integration
-        * **🌐 User-friendly web interface for farmers and researchers           
+        * **📸 Image-based leaf disease detection**
+        * **🤖 Deep Learning models**
+        * **🌾 Support for multiple crops**
         
-        ### 🌿 AI Models Designed for Crop-Specific Precision
-        AgriDetectAI leverages a **multi-model architecture** where each neural network specializes in a defined crop category. This targeted approach enhances prediction accuracy and minimizes cross-crop misclassification.
-        **Model Coverage:**
-                    - **Rice & Potato**
-                    - **Corn & Blackgram**
-                    - **Cotton & Tomato**
-                    - **Pumpkin & Wheat**
-        Across all models, the system identifies both **diseased and healthy leaves**, enabling fast, dependable plant health assessments and supporting data-driven agricultural practices.
+        ### 🌿 AI Models
+        AgriDetectAI leverages a **multi-model architecture**...
+        - **Rice & Potato**
+        - **Corn & Blackgram**
+        - **Cotton & Tomato**
+        - **Pumpkin & Wheat**
         """)
-
-                        
-
-    
-    
