@@ -1,0 +1,87 @@
+{
+    "models": {
+        "rice_potato": {
+            "file": "rice_potato.h5",
+            "type": "tensorflow",
+            "classes": {
+                "0": "Potato Bacteria",
+                "1": "Potato Fungi",
+                "2": "Potato Healthy",
+                "3": "Potato Nematode",
+                "4": "Potato Phytophthora",
+                "5": "Potato Virus",
+                "6": "Rice Bacterial Leaf Blight",
+                "7": "Rice Brown Spot",
+                "8": "Rice Healthy",
+                "9": "Rice Leaf Blast",
+                "10": "Rice Leaf Scald",
+                "11": "Rice Sheath Blight"
+            }
+        },
+        "cotton_tomato": {
+            "file": "cotton_tomato.pth",
+            "type": "torch",
+            "num_classes":17,
+            "architecture": "efficientnet_b3",
+            "img_size":224,
+            "classes": {
+                "0": "Tomato Bacterial Spot",
+                "1": "Tomato Early Blight",
+                "2": "Tomato Late Blight",
+                "3": "Tomato Leaf Mold",
+                "4": "Tomato Septoria Leaf Spot",
+                "5": "Tomato Spider Mites (Two Spotted Spider Mite)",
+                "6": "Tomato Target Spot",
+                "7": "Tomato Yellow Leaf Curl Virus",
+                "8": "Tomato Mosaic Virus",
+                "9": "Tomato Healthy",
+                "10": "Cotton Bacterial Blight",
+                "11": "Cotton Curl Virus",
+                "12": "Cotton Healthy Leaf",
+                "13": "Cotton Herbicide Growth Damage",
+                "14": "Cotton Leaf Hopper (Jassids)",
+                "15": "Cotton Leaf Redding",
+                "16": "Cotton Leaf Variegation"
+                 
+            }
+        },
+        "corn_blackgram": {
+            "file": "corn_blackgram.h5",
+            "type": "tensorflow",
+            "classes": {
+                "0": "Blackgram Anthracnose",
+                "1": "Blackgram LeafCrinckle",
+                "2": "Blackgram LeafCrinckle",
+                "3": "Blackgram PowderyMildew",
+                "4": "Blackgram YellowMossaic",
+                "5": "Corn Blight",
+                "6": "Corn CommonRust",
+                "7": "Corn GrayLeafSpot",
+                "8": "Corn Healthy"
+            }
+        },
+        "pumpkin_wheat": {
+            "file": "model.weights.h5",
+            "type": "tensorflow",
+            "classes": {
+                "0": "Pumpkin Bacterial Leaf Spot",
+                "1": "Pumpkin Downy Mildew",
+                "2": "Pumpkin Healthy",
+                "3": "Pumpkin Mosaic Disease",
+                "4": "Pumpkin Powdery Mildew",
+
+                "5": "Wheat Black Rust",
+                "6": "Wheat Blast",
+                "7": "Wheat Fusarium Head Blight",
+                "8": "Wheat Healthy",
+                "9": "Wheat Leaf Disease",
+                "10": "Wheat Mildew",
+                "11": "Wheat Pest",
+                "12": "Wheat Root Disease",
+                "13": "Wheat Rust",
+                "14": "Wheat Smut",
+                "15": "Wheat Stem Fly"
+            }
+        }
+    }
+}

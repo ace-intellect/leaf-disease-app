@@ -1,0 +1,14 @@
+streamlit
+tensorflow
+torch
+torchvision
+pillow
+numpy
+pandas
+matplotlib
+plotly
+passlib
+python-dotenv
+requests
+google-generativeai
+timm
