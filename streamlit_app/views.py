@@ -121,7 +121,7 @@ def landing_page():
         <h2>Why AgriDetectAI?</h2>
         <div class="grid">
             <div class="card"><h3>🌾 Unified Crop Intelligence</h3><p>One unified model detects diseases across Rice, Potato, Corn, and more.</p></div>
-            <div class="card"><h3>🧠 Deep Learning Accuracy</h3><p>Built on fine-tuned ResNet architectures trained on real agricultural datasets.</p></div>
+            <div class="card"><h3>🧠 Deep Learning Accuracy</h3><p>Built on fine-tuned CNN architectures trained on real agricultural datasets.</p></div>
             <div class="card"><h3>🔍 Explainable AI</h3><p>Visual indicators and confidence scores help you understand why a disease was detected.</p></div>
         </div>
     </div>
@@ -261,7 +261,7 @@ def login_page():
     c1, c2, c3 = st.columns([1, 1.5, 1])
     
     with c2:
-        st.markdown('<div class="login-card"><div class="login-title">Welcome Back! 👋</div><p style="color:#d1fae5;">Access your intelligent crop dashboard</p></div>', unsafe_allow_html=True)
+        st.markdown('<div class="login-card"><div class="login-title">Welcome Back! </div><p style="color:#d1fae5;">Access your intelligent crop dashboard</p></div>', unsafe_allow_html=True)
         
         tab1, tab2 = st.tabs(["Login", "Register"])
         
@@ -329,26 +329,39 @@ def dashboard_page():
     header {{visibility:hidden;}}
     footer {{visibility:hidden;}}
 
-    h1{{
+    h1 {{
         font-weight:900;
         font-size:52px;
         letter-spacing:-1px;
     }}
 
-    .stTabs [data-baseweb="tab-list"]{{
-        gap:40px;
-        justify-content:center;
+    /* --- PILL NAVBAR STYLE --- */
+    .stTabs [data-baseweb="tab-list"] {{
+        gap: 10px;
+        background-color: rgba(255, 255, 255, 0.05);
+        padding: 10px 20px;
+        border-radius: 50px;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
     }}
 
-    .stTabs [data-baseweb="tab"]{{
-        color:#ffffff !important;
-        font-weight:600;
-        font-size:18px;
+    .stTabs [data-baseweb="tab"] {{
+        height: 40px;
+        border-radius: 40px;
+        color: #e2e8f0 !important;
+        background-color: transparent;
+        border: none;
+        font-weight: 600;
+        font-size: 0.95rem;
+        padding: 0 20px;
     }}
 
-    .stTabs [aria-selected="true"]{{
-        color:#00FFC6 !important;
-        border-bottom:3px solid #00FFC6 !important;
+    .stTabs [aria-selected="true"] {{
+        background-color: #34d399 !important;
+        color: #020617 !important;
+        font-weight: 800;
+        box-shadow: 0 4px 15px rgba(52, 211, 153, 0.4);
     }}
 
     [data-testid="stFileUploader"] {{
@@ -359,7 +372,7 @@ def dashboard_page():
         background:rgba(255,255,255,0.05);
     }}
 
-    /* --- DASHBOARD BUTTONS FIX (MATCHING LOGIN PAGE) --- */
+    /* --- DASHBOARD BUTTONS FIX --- */
     div.stButton > button {{
         background: linear-gradient(90deg, #22d3ee, #34d399) !important;
         color: #000000 !important;
@@ -376,13 +389,11 @@ def dashboard_page():
         color: #000000 !important;
     }}
 
-    /* Ensure button text remains black */
     div.stButton > button p {{
         color: #000000 !important;
         font-weight: 800 !important;
     }}
 
-    /* Dropdown/Selectbox Visibility Fix */
     .stSelectbox div[data-baseweb="select"] > div {{
         background-color: rgba(255, 255, 255, 0.1) !important;
         color: white !important;
@@ -403,7 +414,7 @@ def dashboard_page():
         if user.get('join_date'):
             st.caption(f"Member since: {user['join_date'].split(' ')[0]}")
         st.markdown("---")
-        if st.button("🚪 Logout", use_container_width=True):
+        if st.button("🚪", use_container_width=True):
             from auth import logout
             logout()
 
@@ -418,8 +429,9 @@ def dashboard_page():
             st.rerun()
 
     tab_home, tab_profile, tab_analysis, tab_connect, tab_climate, tab_analytics, tab_history, tab_about = st.tabs([
-        "🏠 Home", "👤 Profile", "🔍 Analysis", "🤝 AgriConnect", "🌦️ Climate", "📊 Analytics", "📜 History", "ℹ️ About"
+        "Home", "Profile", "Analysis", "AgriConnect", "Climate", "Analytics", "History", "About"
     ])
+
 
     # =====================================================
     # 🏠 HOME TAB
@@ -427,7 +439,10 @@ def dashboard_page():
     with tab_home:
         # --- 0. SETUP VARIABLES ---
         # Map your existing user dictionary to the variable name used in the new design
-        username = user['name'] 
+        username = user['name']
+        from datetime import datetime
+        today_date = datetime.now().strftime("%A, %d %B %Y")
+ 
 
         # --- 1. CUSTOM CSS FOR THIS TAB ---
         st.markdown("""
@@ -515,11 +530,29 @@ def dashboard_page():
         </style>
         """, unsafe_allow_html=True)
 
-        # --- 2. WELCOME HERO ---
-        st.markdown(f"<h1 style='font-size: 3rem; margin-bottom: 0;'>👋 Welcome back, {username}!</h1>", unsafe_allow_html=True)
-        st.markdown("<p style='color: #cbd5e1; font-size: 1.2rem;'>Here is what's happening on your farm today.</p>", unsafe_allow_html=True)
-        
+        # --- 2. FARM OVERVIEW HERO (NEW CONTENT) ---
+        st.markdown(f"""
+        <div style="padding: 20px 0;">
+            <h1 style='font-size: 3rem; margin-bottom: 10px; color: white;'>
+                Farm Overview & Daily Insights
+            </h1>
+            <p style='color: #34d399; font-size: 1.1rem; font-weight: 600; margin-bottom: 15px; letter-spacing: 0.5px;'>
+                📅 {today_date} &nbsp; | &nbsp; 📍 Nalgonda, Telangana
+            </p>
+            <p style='color: #cbd5e1; font-size: 1.15rem; line-height: 1.6; max-width: 900px;'>
+                Welcome to your command center, <b>{username}</b>. You are currently monitoring 
+                <b>12 acres</b> of active cultivation for the <b>Rabi Season</b>. 
+            Our AI systems have detected optimal humidity levels for Rice, but please review the 
+            <b>3 active alerts</b> regarding Potato Blight in Sector 4.
+            Use the tabs above to run new diagnostics or check soil analytics.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+
         st.markdown("---")
+
+
+        
 
         # --- 3. LIVE STATUS (The Green/Red Cards) ---
         c1, c2 = st.columns(2)
@@ -789,10 +822,13 @@ def dashboard_page():
 
         # --- NEW: CROP SELECTION UI ---
         # This allows the user to switch between Rice/Potato and Corn/Blackgram
+        # --- CROP SELECTION UI ---
         model_options = {
             "Rice & Potato": "rice_potato",
-            "Corn & Blackgram": "corn_blackgram"
+            "Corn & Blackgram": "corn_blackgram",
+            "Cotton & Tomato": "cotton_tomato"
         }
+
         
         col_select, _ = st.columns([2, 2])
         with col_select:
@@ -809,7 +845,7 @@ def dashboard_page():
         left, center, right = st.columns([1,6,1])
 
         with center:
-            st.info(f"📸 Upload a clear leaf image for {selected_display_name}")
+            
 
             uploaded_file = st.file_uploader(
                 "🌿 Upload Leaf Image — JPG / PNG (Max 5MB)",
@@ -1174,15 +1210,15 @@ def dashboard_page():
 
     # --- TAB 6: ABOUT ---
     with tab_about:
-        st.header("ℹ️ About Agri-AI")
+        st.header("ℹ️ About AgriDetect-AI")
         st.markdown("""
         **Agri-AI** is a cutting-edge leaf disease detection platform designed to empower farmers with instant, laboratory-grade diagnostics. It is an AI-powered web application designed to detect plant leaf diseases and healthy conditions across multiple crops using deep learning and computer vision. The system integrates four specialized models, each trained to handle specific crop groups, ensuring higher accuracy and scalability.
         
         ### 🧠 The Engine
-        * **📸 Image-based leaf disease detection
-        * **🤖 Deep Learning models trained on crop-specific datasets
-        * **🌾 Support for multiple crops through modular model integration
-        * **🌐 User-friendly web interface for farmers and researchers           
+        * 📸 Image-based leaf disease detection
+        * 🤖 Deep Learning models trained on crop-specific datasets
+        * 🌾 Support for multiple crops through modular model integration
+        * 🌐 User-friendly web interface for farmers and researchers           
         
         ### 🌿 AI Models Designed for Crop-Specific Precision
         AgriDetectAI leverages a **multi-model architecture** where each neural network specializes in a defined crop category. This targeted approach enhances prediction accuracy and minimizes cross-crop misclassification.
