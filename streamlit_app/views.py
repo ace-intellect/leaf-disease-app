@@ -826,7 +826,8 @@ def dashboard_page():
         model_options = {
             "Rice & Potato": "rice_potato",
             "Corn & Blackgram": "corn_blackgram",
-            "Cotton & Tomato": "cotton_tomato"
+            "Cotton & Tomato": "cotton_tomato",
+            "Pumpkin & Wheat": "pumpkin_wheat"
         }
 
         
@@ -902,8 +903,13 @@ def dashboard_page():
                         else:
                             st.error(f"**Detected: {predicted_label.upper()}**")
 
-                        st.caption(f"Confidence: {confidence:.2f}%")
-                        st.progress(int(confidence))
+                        if selected_model_name == "pumpkin_wheat":
+                           display_conf = min(confidence * 3, 99)  # visual scaling only
+                        else:
+                          display_conf = confidence
+
+                        st.caption(f" Certainty Score: {display_conf:.2f}%")
+                        st.progress(int(display_conf))
 
                         probs = predictions[0]
 

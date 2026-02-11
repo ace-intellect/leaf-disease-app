@@ -4,9 +4,6 @@ import torch
 import timm
 import os
 import json
-from tensorflow.keras.applications import EfficientNetB0
-from tensorflow.keras.layers import Dense, GlobalAveragePooling2D
-from tensorflow.keras.models import Model
 
 # Load config
 CONFIG_PATH = os.path.join("config", "model_config.json")
@@ -26,37 +23,21 @@ def load_model(model_key):
     model_path = os.path.join("models", info["file"])
     model_type = info["type"]
 
-    # ---------------- TENSORFLOW ----------------
+    # ===================== TENSORFLOW =====================
     if model_type == "tensorflow":
         try:
-            # Special architecture case
-            if model_key == "pumpkin_wheat":
-                base_model = EfficientNetB0(
-                    include_top=False,
-                    weights=None,
-                    input_shape=(224, 224, 3)
-                )
-
-                x = base_model.output
-                x = GlobalAveragePooling2D()(x)
-                output = Dense(
-                    info["num_classes"],
-                    activation="softmax"
-                )(x)
-
-                model = Model(inputs=base_model.input, outputs=output)
-                model.load_weights(model_path)
-                return model, model_type
-
-            # Normal TF models
-            model = tf.keras.models.load_model(model_path)
+            # For ALL full .h5 models (rice, corn, pumpkin etc.)
+            model = tf.keras.models.load_model(
+                model_path,
+                compile=False
+            )
             return model, model_type
 
         except Exception as e:
             st.error(f"Error loading TF model: {e}")
             return None, model_type
 
-    # ---------------- PYTORCH ----------------
+    # ===================== PYTORCH =====================
     elif model_type == "torch":
         try:
             model = timm.create_model(
@@ -67,7 +48,7 @@ def load_model(model_key):
 
             checkpoint = torch.load(model_path, map_location="cpu")
 
-            if "model_state_dict" in checkpoint:
+            if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
                 state_dict = checkpoint["model_state_dict"]
             else:
                 state_dict = checkpoint

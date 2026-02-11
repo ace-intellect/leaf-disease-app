@@ -9,17 +9,22 @@ from tensorflow.keras.applications.resnet50 import preprocess_input as resnet_pr
 from tensorflow.keras.applications.efficientnet import preprocess_input as effnet_preprocess
 
 
-def preprocess_image(image, model_type="tensorflow", target_size=(224, 224), model_key=None):
+def preprocess_image(image, model_type="tensorflow", model_key=None):
     """
     Prepares an image for prediction.
-    Chooses preprocessing based on model_key.
+    Chooses preprocessing and image size based on model_key.
     """
 
-    # 1. Ensure RGB
+    # 1️⃣ Ensure RGB
     if image.mode != "RGB":
         image = image.convert("RGB")
 
-    # 2. Resize
+    # 2️⃣ Decide image size dynamically
+    if model_key == "pumpkin_wheat":
+        target_size = (256, 256)   # 🔥 FIX for your model
+    else:
+        target_size = (224, 224)
+
     image = image.resize(target_size)
 
     # ---------------- TENSORFLOW ----------------
@@ -27,11 +32,11 @@ def preprocess_image(image, model_type="tensorflow", target_size=(224, 224), mod
         img_array = np.array(image)
         img_array = np.expand_dims(img_array, axis=0)
 
-        # EfficientNet-based models
+        # EfficientNet models
         if model_key in ["corn_blackgram", "pumpkin_wheat"]:
             img_array = effnet_preprocess(img_array)
 
-        # Default: ResNet-based models
+        # ResNet models
         else:
             img_array = resnet_preprocess(img_array)
 
@@ -47,5 +52,6 @@ def preprocess_image(image, model_type="tensorflow", target_size=(224, 224), mod
                 std=[0.229, 0.224, 0.225]
             )
         ])
+
         img_tensor = transform(image).unsqueeze(0)
         return img_tensor

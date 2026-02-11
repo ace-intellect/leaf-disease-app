@@ -1,3 +1,4 @@
+
 {
     "models": {
         "rice_potato": {
@@ -61,7 +62,7 @@
             }
         },
         "pumpkin_wheat": {
-            "file": "model.weights.h5",
+            "file": "model4.h5",
             "type": "tensorflow",
             "classes": {
                 "0": "Pumpkin Bacterial Leaf Spot",
