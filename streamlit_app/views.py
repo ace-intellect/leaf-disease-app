@@ -12,6 +12,7 @@ from PIL import Image
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime # Moved from inside the function
+import hashlib
 from dotenv import load_dotenv
 import google.generativeai as genai
 
@@ -26,6 +27,51 @@ def image_to_base64(image):
 from auth import authenticate_user, create_user
 from preprocess import preprocess_image
 from model_loader import load_model, predict_image
+from utils import add_analysis_history, get_analysis_history, add_community_feedback, get_recent_community_feedback
+from utils import get_user_profile, upsert_user_profile, update_user_last_login, get_total_scans, run_query
+
+load_dotenv()
+
+def _get_gemini_model_name():
+    model_name = None
+    try:
+        for m in genai.list_models():
+            if "generateContent" in getattr(m, "supported_generation_methods", []):
+                model_name = m.name
+                break
+    except Exception:
+        model_name = None
+    return model_name or "models/gemini-pro"
+
+def generate_treatment_prevention(*, crop_category: str, disease_label: str):
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY not configured")
+
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel(_get_gemini_model_name())
+
+    prompt = (
+        "You are an agricultural extension assistant. "
+        "Provide farmer-safe advice. "
+        "Return Markdown only.\n\n"
+        f"Crop category: {crop_category}\n"
+        f"Detected disease/condition: {disease_label}\n\n"
+        "Write two sections with headings:\n"
+        "## Treatment\n"
+        "- Give practical steps\n"
+        "- Mention cultural practices first, then chemical options if needed\n"
+        "- Include safety notes (PPE, follow label, local regulations)\n\n"
+        "## Prevention\n"
+        "- Give preventive steps for next time\n\n"
+        "Keep it concise. If the disease name is ambiguous, say so and give general best-practice guidance."
+    )
+
+    response = model.generate_content(prompt)
+    text = response.text if response and getattr(response, "text", None) else ""
+    if not text.strip():
+        raise RuntimeError("Gemini returned empty response")
+    return text
 
 # --- HELPER: BASE64 IMAGE LOADER ---
 def get_base64(file_path):
@@ -40,11 +86,29 @@ def render_profile_panel(user_data):
     """Render the profile panel (moved from the Profile tab)."""
     # (No top-right close icon here — navigation uses Back button)
 
-    # Use the same markup/CSS used previously for the profile tab
     user_data = user_data or {}
-    real_fullname = user_data.get('name', 'Farmer')
-    join_date_raw = str(user_data.get('created_at', '2026-01-01'))
-    real_join_date = join_date_raw.split(' ')[0]
+    username = user_data.get("username")
+    profile = get_user_profile(username) if username else None
+    profile = profile or {}
+
+    real_fullname = user_data.get("name") or "Farmer"
+    join_date_raw = str(user_data.get("join_date") or "2026-01-01")
+    real_join_date = join_date_raw.split(" ")[0]
+
+    role_options = {
+        "farmer": "🌾 Farmer",
+        "student": "🎓 Agri Student",
+        "researcher": "🧪 Researcher",
+        "consultant": "🏢 Agri Consultant",
+    }
+    role_key = (profile.get("role") or "farmer").lower().strip()
+    if role_key not in role_options:
+        role_key = "farmer"
+    role_label = role_options[role_key]
+
+    last_login_display = (profile.get("last_login") or "—").split(" ")[0] if profile.get("last_login") else "—"
+    last_device_display = profile.get("last_device") or "—"
+    location_value = profile.get("location") or "—"
 
     st.markdown("""
     <style>
@@ -109,56 +173,132 @@ def render_profile_panel(user_data):
     </style>
     """, unsafe_allow_html=True)
 
-    st.markdown("<h1 style='margin-bottom: 10px;'>👤 My <span style='color:#34d399'>Profile</span></h1>", unsafe_allow_html=True)
+    mode_key = f"profile_mode_{username or 'anon'}"
+    switch_flag_key = f"profile_switch_to_view_{username or 'anon'}"
+
+    if st.session_state.get(switch_flag_key):
+        st.session_state[mode_key] = "🔒 View"
+        st.session_state[switch_flag_key] = False
+    h1, h2 = st.columns([6, 2], vertical_alignment="center")
+    with h1:
+        st.markdown("<h1 style='margin-bottom: 10px;'>👤 My <span style='color:#34d399'>Profile</span></h1>", unsafe_allow_html=True)
+    with h2:
+        mode = st.radio(
+            "",
+            ["🔒 View", "✏ Edit"],
+            horizontal=True,
+            key=mode_key,
+        )
+    is_edit_mode = mode.startswith("✏")
 
     c1, c2 = st.columns([1, 2], gap="large")
     with c1:
-        # No uploader here (user requested removal). Show avatar from session if available.
         inner_avatar_html = "👨‍🌾"
-        if user_data.get('avatar_b64'):
-            inner_avatar_html = f'<img src="data:image/png;base64,{user_data.get("avatar_b64")}" class="avatar-img">'
+        avatar_b64 = profile.get("avatar_b64")
+        if avatar_b64:
+            inner_avatar_html = f'<img src="data:image/png;base64,{avatar_b64}" class="avatar-img">'
 
         st.markdown(f"""
         <div class="profile-card">
             <div style="background: #fbbf24; color: #020617; padding: 6px 16px; border-radius: 50px; font-size: 0.75rem; font-weight: 800; display: inline-block; margin-bottom: 15px;">PRO MEMBER</div>
             <div class="avatar-circle">{inner_avatar_html}</div>
             <h2 style="margin:0; color: white; font-weight: 800;">{real_fullname}</h2>
-            <p style="color: #94a3b8; font-size: 0.95rem;">Precision Farmer</p>
+            <div style="margin-top: 10px;">
+                <span style="background: rgba(52,211,153,0.18); color: #d1fae5; padding: 6px 14px; border-radius: 999px; font-size: 0.85rem; font-weight: 700; display: inline-block;">{role_label}</span>
+            </div>
             <p style="color: #cbd5e1; margin-top: 25px; font-size: 0.9rem; line-height: 1.6;">
                 <b>Joined:</b> {real_join_date}<br>
-                <b>Location:</b> Nalgonda, TG
+                <b>Location:</b> {location_value}<br>
+                <b>Last Login:</b> {last_login_display}<br>
+                <b>Login Device:</b> {last_device_display}
             </p>
         </div>
         """, unsafe_allow_html=True)
 
+        if is_edit_mode:
+            uploaded = st.file_uploader(
+                "Upload Profile Image",
+                type=["png", "jpg", "jpeg"],
+                key=f"profile_avatar_uploader_{username or 'anon'}",
+            )
+            if uploaded and username:
+                try:
+                    img = Image.open(uploaded)
+                    avatar_b64_new = image_to_base64(img)
+                    upsert_user_profile(username=username, avatar_b64=avatar_b64_new)
+                    st.toast("Profile image updated!", icon="✅")
+                    st.rerun()
+                except Exception:
+                    st.error("Could not process that image. Please upload a valid PNG/JPG.")
+
+        if username:
+            total_scans = get_total_scans(username)
+        else:
+            total_scans = 0
+        st.markdown(
+            f"""
+            <div style="margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); border-radius: 14px; padding: 12px 14px; text-align: left;">
+                    <div style=\"color:#94a3b8; font-size: 0.78rem; font-weight: 700;\">Total Scans</div>
+                    <div style=\"color:#ffffff; font-size: 1.15rem; font-weight: 900; margin-top: 4px;\">{total_scans}</div>
+                </div>
+                <div style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); border-radius: 14px; padding: 12px 14px; text-align: left;">
+                    <div style=\"color:#94a3b8; font-size: 0.78rem; font-weight: 700;\">Member Since</div>
+                    <div style=\"color:#ffffff; font-size: 1.15rem; font-weight: 900; margin-top: 4px;\">{real_join_date}</div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
     with c2:
         with st.container():
             st.markdown("### ⚙️ Account Details")
+            if not username:
+                st.warning("You must be logged in to edit profile details.")
+                return
+
+            default_email = profile.get("email") or f"{username}@agridetect.com"
+            default_phone = profile.get("phone") or ""
+            default_location = profile.get("location") or ""
             col_form1, col_form2 = st.columns(2)
             with col_form1:
-                new_name = st.text_input("Full Name", value=real_fullname)
-                user_handle = user_data.get('username', 'farmer')
-                email = st.text_input("Email", value=f"{user_handle}@agridetect.com", disabled=True)
+                new_name = st.text_input("Full Name", value=real_fullname, disabled=not is_edit_mode)
+                email = st.text_input("Email", value=default_email, disabled=not is_edit_mode)
             with col_form2:
-                phone = st.text_input("Phone Number", value="+91 98765 43210")
-                lang = st.selectbox("App Language", ["English", "Telugu (తెలుగు)", "Hindi (हिंदी)"])
+                phone = st.text_input("Phone Number", value=default_phone, disabled=not is_edit_mode)
+                role_choice = st.selectbox(
+                    "User Role",
+                    [role_options[k] for k in ["farmer", "student", "researcher", "consultant"]],
+                    index=[role_options[k] for k in ["farmer", "student", "researcher", "consultant"]].index(role_label),
+                    disabled=not is_edit_mode,
+                )
 
-            st.markdown("---")
-            st.markdown("#### 🔔 Notification Preferences")
-            c_t1, c_t2 = st.columns(2)
-            with c_t1: st.checkbox("Email Alerts", value=True)
-            with c_t2: st.checkbox("Share Analytics", value=False)
+            location = st.text_input("Location", value=default_location, disabled=not is_edit_mode)
+            lang = st.selectbox("App Language", ["English", "Telugu (తెలుగు)", "Hindi (हिंदी)"], disabled=not is_edit_mode)
 
             st.write("")
-            b1, b2 = st.columns([1, 1])
-            with b1:
-                if st.button("💾 Save Changes", key="save_profile"):
-                    if 'user' in st.session_state:
-                        st.session_state['user']['name'] = new_name
+            if is_edit_mode:
+                if st.button("💾 Save Changes", key=f"save_profile_{username}"):
+                    role_key_new = None
+                    for k, v in role_options.items():
+                        if v == role_choice:
+                            role_key_new = k
+                            break
+
+                    run_query("UPDATE users SET name = ? WHERE username = ?", (new_name, username))
+                    upsert_user_profile(
+                        username=username,
+                        role=role_key_new,
+                        email=email,
+                        phone=phone,
+                        location=location,
+                    )
+                    if "user" in st.session_state and st.session_state["user"]:
+                        st.session_state["user"]["name"] = new_name
+                    st.session_state[switch_flag_key] = True
                     st.toast("Profile updated successfully!", icon="✅")
                     st.rerun()
-            with b2:
-                st.button("🔑 Change Password")
 
 
 def profile_page():
@@ -191,7 +331,7 @@ def profile_page():
     user = st.session_state.get('user')
     c1, c2, c3 = st.columns([1, 9, 2])
     with c1:
-        if st.button("⬅ Back to Dashboard", key="profile_back"):
+        if st.button("⬅ Back", key="profile_back"):
             st.session_state['page'] = 'dashboard'
             st.rerun()
     with c2:
@@ -312,7 +452,7 @@ def landing_page():
     """, unsafe_allow_html=True)
 
     st.markdown("""
-    <div class="custom-footer">© 2026 AgriDetectAI · AI for Smarter Agriculture 🌱</div>
+    <div class="custom-footer"> 2026 AgriDetectAI · AI for Smarter Agriculture 🌱</div>
     """, unsafe_allow_html=True)
 
 # --- LOGIN PAGE ---
@@ -443,6 +583,23 @@ def login_page():
                 if st.form_submit_button("Log In"):
                     user = authenticate_user(username, password)
                     if user:
+                        device = "—"
+                        try:
+                            ua = getattr(getattr(st, "context", None), "headers", {}).get("User-Agent")
+                            if ua:
+                                ua_l = str(ua).lower()
+                                os_name = "Windows" if "windows" in ua_l else ("Android" if "android" in ua_l else ("iOS" if "iphone" in ua_l or "ipad" in ua_l else "Unknown OS"))
+                                browser = "Chrome" if "chrome" in ua_l and "edg" not in ua_l else ("Edge" if "edg" in ua_l else ("Firefox" if "firefox" in ua_l else ("Safari" if "safari" in ua_l and "chrome" not in ua_l else "Browser")))
+                                device = f"{os_name} – {browser}"
+                        except Exception:
+                            device = "—"
+
+                        try:
+                            if user.get("username"):
+                                update_user_last_login(username=user["username"], device=device)
+                        except Exception:
+                            pass
+
                         st.success(f"Welcome, {user['name']}!")
                         time.sleep(1)
                         st.session_state['authenticated'] = True
@@ -450,7 +607,7 @@ def login_page():
                         st.rerun()
                     else:
                         st.error("Invalid credentials.")
-
+        
         with tab2:
             with st.form("register_form"):
                 new_user = st.text_input("Choose a Username")
@@ -468,7 +625,7 @@ def login_page():
                         else: st.error(msg)
         
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("⬅ Back to Home"):
+        if st.button(" Back to Home"):
             st.session_state['page'] = 'landing'
             st.rerun()
 
@@ -590,14 +747,14 @@ def dashboard_page():
         if user.get('join_date'):
             st.caption(f"Member since: {user['join_date'].split(' ')[0]}")
         st.markdown("---")
-        if st.button("🚪", use_container_width=True):
+        if st.button("🚪 Logout", use_container_width=True):
             from auth import logout
             logout()
              
 
 
     # --- MAIN ---
-    st.title("🌿 AgriDetectAI Dashboard")
+    st.markdown("## 🌿 AgriDetectAI Dashboard")
     col1, col2 = st.columns([9, 1])
     with col2:
         if st.button("👤 Profile", help="Open Profile", key="open_profile"):
@@ -605,13 +762,19 @@ def dashboard_page():
             st.rerun()
 
     tab_home, tab_analysis, tab_connect, tab_climate, tab_analytics, tab_history, tab_about = st.tabs([
-        "🏠 Home", "🔍 Analysis", "🤝 AgriConnect", "🌦️ Climate", "📊 Analytics", "📜 History", "ℹ️ About"
+        "🏠 Home",
+        "🔬 Analysis",
+        "🤝 AgriConnect",
+        "🌦️ Climate",
+        "📊 Analytics",
+        "📜 History",
+        "ℹ️ About",
     ])
 
     # Profile navigation handled by top-level routing (see app.py).
 
     # =====================================================
-    # 🏠 HOME TAB
+    #  TAB
     # =====================================================
     with tab_home:
         # --- 0. SETUP VARIABLES ---
@@ -714,7 +877,7 @@ def dashboard_page():
                 Farm Overview & Daily Insights
             </h1>
             <p style='color: #34d399; font-size: 1.1rem; font-weight: 600; margin-bottom: 15px; letter-spacing: 0.5px;'>
-                📅 {today_date} &nbsp; | &nbsp; 📍 Nalgonda, Telangana
+                {today_date} &nbsp; | &nbsp; Nalgonda, Telangana
             </p>
             <p style='color: #cbd5e1; font-size: 1.15rem; line-height: 1.6; max-width: 900px;'>
                 Welcome to your command center, <b>{username}</b>. You are currently monitoring 
@@ -737,25 +900,25 @@ def dashboard_page():
             st.markdown("""
             <div class="stat-card" style="display: flex; align-items: center; justify-content: space-between;">
                 <div style="text-align: left;">
-                    <h3 style="margin:0;">🌾 Active Crops</h3>
+                    <h3 style="margin:0;"> Active Crops</h3>
                     <p style="color: #cbd5e1; margin:0;">Rice (Sona Masoori), Potato</p>
                 </div>
-                <div style="font-size: 2.5rem;">🚜</div>
+                <div style="font-size: 2.5rem;"></div>
             </div>
             """, unsafe_allow_html=True)
         with c2:
             st.markdown("""
             <div class="stat-card" style="display: flex; align-items: center; justify-content: space-between; border-color: #34d399;">
                 <div style="text-align: left;">
-                    <h3 style="margin:0; color: #34d399;">🛡️ System Status</h3>
+                    <h3 style="margin:0; color: #34d399;"> System Status</h3>
                     <p style="color: #cbd5e1; margin:0;">AI Model Online & Ready</p>
                 </div>
-                <div style="font-size: 2.5rem;">✅</div>
+                <div style="font-size: 2.5rem;"></div>
             </div>
             """, unsafe_allow_html=True)
 
         # --- 4. COMPANY ACHIEVEMENTS (Grid Layout) ---
-        st.markdown('<div class="section-title">🚀 Our Impact</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title"> Our Impact</div>', unsafe_allow_html=True)
         
         ac1, ac2, ac3, ac4 = st.columns(4)
         with ac1:
@@ -788,7 +951,7 @@ def dashboard_page():
             """, unsafe_allow_html=True)
 
         # --- 5. FARMER REVIEWS ---
-        st.markdown('<div class="section-title">💬 What Farmers Say</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title"> What Farmers Say</div>', unsafe_allow_html=True)
         
         rc1, rc2 = st.columns(2)
         
@@ -796,11 +959,11 @@ def dashboard_page():
             st.markdown("""
             <div class="review-card">
                 <div class="review-text">"I used to lose 30% of my potato crop to Blight every year. AgriDetect diagnosed it early, and the suggested spray saved my harvest!"</div>
-                <div class="review-author">👤 Ramesh Reddy <span style="font-weight:normal; color:#64748b; font-size:0.9rem;">(Warangal)</span></div>
+                <div class="review-author"> Ramesh Reddy <span style="font-weight:normal; color:#64748b; font-size:0.9rem;">(Warangal)</span></div>
             </div>
             <div class="review-card">
                 <div class="review-text">"The interface is so simple, even my father can use it. The Telugu language support would be great in the future!"</div>
-                <div class="review-author">👤 Sita Lakshmi <span style="font-weight:normal; color:#64748b; font-size:0.9rem;">(Karimnagar)</span></div>
+                <div class="review-author"> Sita Lakshmi <span style="font-weight:normal; color:#64748b; font-size:0.9rem;">(Karimnagar)</span></div>
             </div>
             """, unsafe_allow_html=True)
             
@@ -808,11 +971,11 @@ def dashboard_page():
             st.markdown("""
             <div class="review-card">
                 <div class="review-text">"Government schemes section is very helpful. I didn't know I was eligible for the PM-Kisan subsidy until I checked here."</div>
-                <div class="review-author">👤 Krishna Rao <span style="font-weight:normal; color:#64748b; font-size:0.9rem;">(Nalgonda)</span></div>
+                <div class="review-author"> Krishna Rao <span style="font-weight:normal; color:#64748b; font-size:0.9rem;">(Nalgonda)</span></div>
             </div>
             <div class="review-card">
                 <div class="review-text">"Best app for Rice Blast detection. The chemical dosage recommendations are very accurate."</div>
-                <div class="review-author">👤 Venkat Goud <span style="font-weight:normal; color:#64748b; font-size:0.9rem;">(Khammam)</span></div>
+                <div class="review-author"> Venkat Goud <span style="font-weight:normal; color:#64748b; font-size:0.9rem;">(Khammam)</span></div>
             </div>
             """, unsafe_allow_html=True)
 
@@ -829,8 +992,7 @@ def dashboard_page():
                 <a href="#">Contact Support</a>
             </div>
             <p style="margin-top: 30px; font-size: 0.8rem; opacity: 0.6;">
-                © 2026 AgriDetectAI · AI for Smarter Agriculture 🌱 <br>
-                Designed with ❤️ for Indian Farmers.
+                 2026 AgriDetectAI · AI for Smarter Agriculture 
             </p>
         </div>
         """, unsafe_allow_html=True)
@@ -838,11 +1000,6 @@ def dashboard_page():
 
     # Profile moved: rendering is handled by `render_profile_panel()` when the top-right icon is clicked.
 
-    # =====================================================
-    # 🔍 ANALYSIS TAB
-    # =====================================================
-    # =====================================================
-    # 🔍 ANALYSIS TAB
     # =====================================================
     with tab_analysis:
         st.markdown("### AI Disease Diagnosis")
@@ -865,25 +1022,19 @@ def dashboard_page():
             "Cotton & Tomato": "cotton_tomato"
         }
 
-        
-        col_select, _ = st.columns([2, 2])
-        with col_select:
-            selected_display_name = st.selectbox(
-                "🎯 Select Crop Category",
-                options=list(model_options.keys())
-            )
+        selected_display_name = st.selectbox(
+            " Select Crop Category",
+            options=list(model_options.keys())
+        )
         
         # This is the internal key used for config and preprocessing logic
         selected_model_name = model_options[selected_display_name]
 
         st.markdown("---")
 
-        left, center, right = st.columns([1,6,1])
+        col_left, col_right = st.columns([0.9, 1.1], gap="large")
 
-        with center:
-            
-
-            # Make the uploader placeholder/text black for better visibility
+        with col_left:
             st.markdown("""
             <style>
             [data-testid="stFileUploader"] { color: #000000 !important; }
@@ -892,38 +1043,30 @@ def dashboard_page():
             """, unsafe_allow_html=True)
 
             uploaded_file = st.file_uploader(
-                "🌿 Upload Leaf Image — JPG / PNG (Max 5MB)",
-                type=["jpg","jpeg","png"]
+                " Upload Leaf Image — JPG / PNG (Max 5MB)",
+                type=["jpg", "jpeg", "png"]
             )
 
-        if uploaded_file is not None:
+            image = None
+            if uploaded_file is not None:
+                image = Image.open(uploaded_file)
+                st.image(image, caption='Your Upload', width=340)
 
-            image = Image.open(uploaded_file)
-
-            col1, col2 = st.columns([1,1.5])
-
-            with col1:
-                st.image(image, caption='Your Upload', use_container_width=True)
-
-            with col2:
-
-                st.markdown("#### 🔬 Diagnosis Report")
+        with col_right:
+            if uploaded_file is not None and image is not None:
+                st.markdown("#### Diagnosis Report")
 
                 with st.spinner('Scanning leaf tissues...'):
 
-                    # Load the specific model chosen by the user
                     model, model_type = load_model(selected_model_name)
 
                     if not model:
                         st.error("Model failed to load.")
                         return
 
-                    # --- CRITICAL CHANGE ---
-                    # We now pass selected_model_name as the model_key 
-                    # so preprocess.py knows whether to use ResNet or EfficientNet math.
                     processed_img = preprocess_image(
-                        image, 
-                        model_type=model_type, 
+                        image,
+                        model_type=model_type,
                         model_key=selected_model_name
                     )
 
@@ -978,6 +1121,62 @@ def dashboard_page():
 
                         st.altair_chart(chart + text, use_container_width=True)
 
+                        if "analysis_history" not in st.session_state:
+                            st.session_state["analysis_history"] = []
+
+                        upload_bytes = uploaded_file.getvalue() if uploaded_file is not None else b""
+                        upload_hash = hashlib.sha256(upload_bytes).hexdigest() if upload_bytes else None
+                        history_dedupe_key = f"{selected_display_name}||{predicted_label}||{upload_hash}"
+
+                        if history_dedupe_key and st.session_state.get("last_history_key") != history_dedupe_key:
+                            st.session_state["analysis_history"].append(
+                                {
+                                    "Date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                                    "Image": getattr(uploaded_file, "name", "upload"),
+                                    "Crop": selected_display_name,
+                                    "Result": predicted_label,
+                                    "Confidence": f"{confidence:.2f}%",
+                                }
+                            )
+                            st.session_state["last_history_key"] = history_dedupe_key
+
+                            current_user = st.session_state.get("user")
+                            if current_user and current_user.get("username") and upload_hash:
+                                try:
+                                    add_analysis_history(
+                                        username=current_user["username"],
+                                        crop_category=selected_display_name,
+                                        image_name=getattr(uploaded_file, "name", "upload"),
+                                        result=predicted_label,
+                                        confidence=float(confidence),
+                                        upload_hash=upload_hash,
+                                    )
+                                except Exception:
+                                    pass
+
+                        if "treat_prev_cache" not in st.session_state:
+                            st.session_state["treat_prev_cache"] = {}
+
+                        cache_key = f"{selected_display_name}||{predicted_label}"
+
+                        st.markdown("---")
+                        st.markdown("#### Treatment & Prevention")
+
+                        if cache_key in st.session_state["treat_prev_cache"]:
+                            st.markdown(st.session_state["treat_prev_cache"][cache_key])
+                        else:
+                            try:
+                                with st.spinner("Generating treatment & prevention guidance..."):
+                                    advice_md = generate_treatment_prevention(
+                                        crop_category=selected_display_name,
+                                        disease_label=predicted_label,
+                                    )
+                                st.session_state["treat_prev_cache"][cache_key] = advice_md
+                                st.markdown(advice_md)
+                            except Exception as e:
+                                st.info("Treatment & prevention suggestions require Gemini API configuration.")
+                                st.caption(str(e))
+
                     except Exception as e:
                         st.error(f"Prediction Error: {e}")
 
@@ -1027,8 +1226,8 @@ def dashboard_page():
         .feedback-card {
             background: rgba(0, 0, 0, 0.2);
             border-left: 4px solid #34d399;
-            border-radius: 10px;
             padding: 15px;
+            border-radius: 10px;
             margin-bottom: 15px;
         }
         .user-name { color: #34d399 !important; font-weight: bold; }
@@ -1036,13 +1235,13 @@ def dashboard_page():
         </style>
         """, unsafe_allow_html=True)
 
-        st.markdown("<h1 style='text-align: center;'>💬 Community <span style='color:#34d399'>Feedback</span></h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center;'> Community <span style='color:#34d399'>Feedback</span></h1>", unsafe_allow_html=True)
         c1, c2 = st.columns([1.5, 1], gap="large")
 
         with c1:
             with st.form("user_feedback"):
-                st.markdown("### 📝 Submit Your Review")
-                category = st.radio("Hidden Label", ["🌱 Accuracy", "🐛 Bug", "💡 Feature", "❤️ Other"], horizontal=True, label_visibility="collapsed")
+                st.markdown("### Submit Your Review")
+                category = st.radio("Hidden Label", [" Accuracy", " Bug", " Feature", " Other"], horizontal=True, label_visibility="collapsed")
                 col_in1, col_in2 = st.columns(2)
                 with col_in1: name = st.text_input("Your Name (Optional)")
                 with col_in2: crop = st.selectbox("Related Crop", ["General", "Rice", "Potato", "Corn", "Blackgram", "Cotton", "Tomato", "Pumpkin", "Wheat",])
@@ -1051,23 +1250,74 @@ def dashboard_page():
                 
                 c_r1, c_r2 = st.columns(2)
                 with c_r1: rating = st.slider("Rate Us", 1, 5, 5)
-                with c_r2: accuracy = st.radio("AI Accuracy", ["Yes, Spot on! ✅", "Partially ⚠️", "No, Incorrect ❌"], horizontal=True)
+                with c_r2: accuracy = st.radio("AI Accuracy", ["Yes, Spot on! ", "Partially ", "No, Incorrect "], horizontal=True)
 
-                if st.form_submit_button("🚀 Submit Feedback"):
+                if st.form_submit_button(" Submit Feedback"):
                     if message:
-                        st.success("✅ Thank you!"); st.balloons()
+                        current_user = st.session_state.get("user")
+                        username_db = current_user.get("username") if isinstance(current_user, dict) else None
+                        display_name_db = name.strip() if name and name.strip() else (current_user.get("name") if isinstance(current_user, dict) else None)
+                        try:
+                            add_community_feedback(
+                                username=username_db,
+                                display_name=display_name_db,
+                                category=category,
+                                crop=crop,
+                                subject=subject,
+                                message=message,
+                                rating=int(rating) if rating is not None else None,
+                                accuracy=accuracy,
+                            )
+                        except Exception:
+                            pass
+                        st.success(" Thank you!"); st.balloons()
                     else: st.warning("Please enter a message.")
+                    # if message:
+                    #     with open(feedback_file, "a") as f:
+                    #         f.write(f"{name}\n{message}\n\n")
+                    #     st.success("Thank you for your feedback!")
+                    # else:
+                    #     st.warning("Please enter a message.")
 
         with c2:
-            st.markdown("### 🌍 Recent Activity")
-            st.markdown("""
-            <div class="feedback-card"><div class="user-name">Venkatesh K.</div><div class="feedback-text">"Rice Blast detection saved my crop!"</div></div>
-            <div class="feedback-card"><div class="user-name">Sarah Jenkins</div><div class="feedback-text">"Great accuracy on Potato Late Blight."</div></div>
-            """, unsafe_allow_html=True)
+            st.markdown("### Recent Activity")
+            try:
+                recent_rows = get_recent_community_feedback(limit=12)
+            except Exception:
+                recent_rows = []
+
+            if not recent_rows:
+                st.info("No community feedback yet. Be the first to post a review!")
+            else:
+                cards_html = ""
+                for r in recent_rows:
+                    created_at, display_name, crop_name, subj, msg, rating_val, accuracy_val = r
+                    display = display_name or "Anonymous"
+                    subtitle_parts = []
+                    if crop_name:
+                        subtitle_parts.append(str(crop_name))
+                    if subj:
+                        subtitle_parts.append(str(subj))
+                    if rating_val is not None:
+                        subtitle_parts.append(f"Rating: {rating_val}/5")
+                    if accuracy_val:
+                        subtitle_parts.append(str(accuracy_val).strip())
+                    subtitle = " · ".join(subtitle_parts)
+
+                    cards_html += (
+                        f'<div class="feedback-card">'
+                        f'  <div class="user-name">{display}</div>'
+                        f'  <div class="feedback-text">"{str(msg).strip()}"</div>'
+                        + (f'  <div style="color:#94a3b8;font-size:0.85rem;margin-top:6px;">{subtitle}</div>' if subtitle else "")
+                        + (f'  <div style="color:#64748b;font-size:0.75rem;margin-top:4px;">{created_at}</div>' if created_at else "")
+                        + '</div>'
+                    )
+
+                st.markdown(cards_html, unsafe_allow_html=True)
 
     # --- TAB 3: CLIMATE & ALERTS ---
     with tab_climate:
-        st.header("🌦️ Local Climate & Alerts")
+        st.header(" Local Climate & Alerts")
         
         # MOCK METRICS (Looks real but is static for now)
         col1, col2, col3 = st.columns(3)
@@ -1081,7 +1331,7 @@ def dashboard_page():
         st.markdown("---")
         
         # ALERTS SECTION
-        st.subheader("⚠️ Active Disease Alerts")
+        st.subheader(" Active Disease Alerts")
         
         st.warning("""
         **High Risk Alert: Rice Blast**
@@ -1147,12 +1397,12 @@ def dashboard_page():
         """, unsafe_allow_html=True)
 
         # --- 2. HEADER ---
-        st.markdown("<h1 style='text-align: center;'>📊 Farm <span style='color:#34d399'>Analytics</span></h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center;'> Farm <span style='color:#34d399'>Analytics</span></h1>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; color: #cbd5e1; margin-bottom: 30px;'>Real-time insights on crop health and yield predictions.</p>", unsafe_allow_html=True)
 
         # --- 3. KPI SECTION ---
         k1, k2, k3, k4 = st.columns(4)
-        with k1: st.markdown('<div class="kpi-card"><div class="kpi-label">Total Scans</div><div class="kpi-value">1,248</div><div style="color: #34d399; font-size: 0.8rem;">▲ 12% this week</div></div>', unsafe_allow_html=True)
+        with k1: st.markdown('<div class="kpi-card"><div class="kpi-label">Total Scans</div><div class="kpi-value">1,248</div><div style="color: #34d399; font-size: 0.8rem;"> 12% this week</div></div>', unsafe_allow_html=True)
         with k2: st.markdown('<div class="kpi-card"><div class="kpi-label">Avg Health Score</div><div class="kpi-value">87%</div><div style="color: #34d399; font-size: 0.8rem;">Stable</div></div>', unsafe_allow_html=True)
         with k3: st.markdown('<div class="kpi-card"><div class="kpi-label">Disease Alerts</div><div class="kpi-value" style="color: #f87171;">14</div><div style="color: #f87171; font-size: 0.8rem;">Requires Action</div></div>', unsafe_allow_html=True)
         with k4: st.markdown('<div class="kpi-card"><div class="kpi-label">Est. Yield</div><div class="kpi-value">4.2T</div><div style="color: #fbbf24; font-size: 0.8rem;">Potato & Rice</div></div>', unsafe_allow_html=True)
@@ -1173,7 +1423,7 @@ def dashboard_page():
         c1, c2 = st.columns(2)
         
         with c1:
-            st.markdown("### 🌾 Crop Yield Forecast")
+            st.markdown("### Crop Yield Forecast")
             # Bar Chart using Plotly Express
             fig_yield = px.bar(yield_data, x="Crop", y="Yield (Tons)", color="Crop", color_discrete_sequence=["#34d399", "#22d3ee", "#fbbf24", "#f87171"])
             
@@ -1190,7 +1440,7 @@ def dashboard_page():
             st.plotly_chart(fig_yield, use_container_width=True)
 
         with c2:
-            st.markdown("### 📉 Disease Trends (6 Months)")
+            st.markdown("### Disease Trends (6 Months)")
             # Area Chart using Graph Objects
             fig_trend = go.Figure()
             fig_trend.add_trace(go.Scatter(x=trend_data["Month"], y=trend_data["Healthy"], fill='tozeroy', mode='lines', name='Healthy', line=dict(width=3, color='#34d399')))
@@ -1209,7 +1459,7 @@ def dashboard_page():
             st.plotly_chart(fig_trend, use_container_width=True)
 
         # --- 6. RECENT REPORTS TABLE ---
-        st.markdown("### 📋 Recent Field Reports")
+        st.markdown("### Recent Field Reports")
         st.markdown("""
         <div class="chart-container">
             <table class="report-table">
@@ -1244,35 +1494,100 @@ def dashboard_page():
 
     # --- TAB 5: HISTORY ---
     with tab_history:
-        st.header("📜 Analysis History")
-        st.dataframe(pd.DataFrame({
-            "Date": ["2023-10-01", "2023-10-05", "2023-10-12"],
-            "Image": ["IMG_2022.jpg", "IMG_2025.jpg", "IMG_2030.jpg"],
-            "Result": ["Healthy", "Rice Blast", "Healthy"],
-            "Confidence": ["99%", "87%", "95%"]
-        }))
+        st.header(" Analysis History")
+        current_user = st.session_state.get("user")
+
+        history_rows = []
+        if current_user and current_user.get("username"):
+            try:
+                db_rows = get_analysis_history(current_user["username"], limit=200)
+                history_rows = [
+                    {
+                        "Date": r[0],
+                        "Image": r[1],
+                        "Crop": r[2],
+                        "Result": r[3],
+                        "Confidence": f"{r[4]:.2f}%" if r[4] is not None else "",
+                    }
+                    for r in db_rows
+                ]
+            except Exception:
+                history_rows = []
+
+        if not history_rows:
+            history_rows = st.session_state.get("analysis_history", [])
+
+        if not history_rows:
+            st.info("No analysis history yet. Upload a leaf image in the Analysis tab to generate a record.")
+        else:
+            st.dataframe(pd.DataFrame(history_rows), use_container_width=True)
 
     # --- TAB 6: ABOUT ---
     with tab_about:
-        st.header("ℹ️ About AgriDetect-AI")
-        st.markdown("""
-        **Agri-AI** is a cutting-edge leaf disease detection platform designed to empower farmers with instant, laboratory-grade diagnostics. It is an AI-powered web application designed to detect plant leaf diseases and healthy conditions across multiple crops using deep learning and computer vision. The system integrates four specialized models, each trained to handle specific crop groups, ensuring higher accuracy and scalability.
-        
-        ### 🧠 The Engine
-        * 📸 Image-based leaf disease detection
-        * 🤖 Deep Learning models trained on crop-specific datasets
-        * 🌾 Support for multiple crops through modular model integration
-        * 🌐 User-friendly web interface for farmers and researchers           
-        
-        ### 🌿 AI Models Designed for Crop-Specific Precision
-        AgriDetectAI leverages a **multi-model architecture** where each neural network specializes in a defined crop category. This targeted approach enhances prediction accuracy and minimizes cross-crop misclassification.
-        **Model Coverage:**
-                    - **Rice & Potato**
-                    - **Corn & Blackgram**
-                    - **Cotton & Tomato**
-                    - **Pumpkin & Wheat**
-        Across all models, the system identifies both **diseased and healthy leaves**, enabling fast, dependable plant health assessments and supporting data-driven agricultural practices.
-        """)
+        st.markdown(
+            """
+<div style="text-align: center; max-width: 900px; margin: auto; background: transparent; border: none; backdrop-filter: none; -webkit-backdrop-filter: none; padding: 28px 26px; border-radius: 18px; color: #e2e8f0;">
+
+<h2 style="color: #ffffff;">🌿 About AgriDetectAI</h2>
+
+<p>
+AgriDetectAI is an intelligent crop health monitoring platform designed to deliver fast, reliable, and field-ready plant disease diagnostics.
+Built to empower farmers, researchers, and agricultural institutions, the system leverages advanced artificial intelligence to identify plant leaf diseases with high precision from simple image inputs.
+</p>
+
+<p>
+By combining deep learning and computer vision, AgriDetectAI transforms traditional crop inspection into a scalable, data-driven solution — enabling early detection, reduced crop loss, and improved agricultural productivity.
+</p>
+
+<br>
+
+<h2 style="color: #ffffff;">🧠 Core Capabilities</h2>
+
+<ul style="list-style-type: none; list-style-position: outside; padding-left: 0; margin-left: 0;">
+<li>📷 Image-based plant leaf disease detection</li>
+<li>🌱 Identification of both healthy and diseased crops</li>
+<li>🎯 High-accuracy predictions using specialized AI models</li>
+<li>⚡ Fast and responsive analysis suitable for real-world usage</li>
+<li>👨‍🌾 User-friendly interface designed for farmers and researchers</li>
+<li>📊 Structured and consistent diagnostic outputs</li>
+</ul>
+
+<p>
+AgriDetectAI focuses on delivering actionable insights rather than just predictions — helping users make informed agricultural decisions.
+</p>
+
+<br>
+
+<h2 style="color: #ffffff;">🌾 Crop-Specific AI Architecture</h2>
+
+<p>
+AgriDetectAI follows a multi-model architecture where each deep learning model is trained specifically for a defined crop category.
+This targeted approach improves classification accuracy and significantly reduces cross-crop misclassification.
+</p>
+
+<p><strong>Supported Crop Categories:</strong></p>
+
+<p>
+Rice • Potato • Corn • Blackgram • Cotton • Tomato • Pumpkin • Wheat
+</p>
+
+<br>
+
+<h2 style="color: #ffffff;">🌍 Why It Matters</h2>
+
+<p>
+Plant diseases are one of the leading causes of agricultural yield loss worldwide. Delayed identification often results in large-scale crop damage and financial setbacks for farmers.
+</p>
+
+<p>
+AgriDetectAI bridges this gap by enabling early-stage detection through accessible, AI-driven technology.
+By digitizing plant health monitoring, the platform supports reduced crop loss, faster intervention decisions, data-driven farming practices, and scalable agricultural innovation.
+</p>
+
+</div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 def chatbot_page():
     st.markdown('<div class="chatbot-scope">', unsafe_allow_html=True)

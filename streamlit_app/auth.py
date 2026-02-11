@@ -34,14 +34,18 @@ def authenticate_user(username, password):
     if not user_data:
         return None  # User not found
     
-    # Database columns: 0=username, 1=name, 2=password, 3=join_date
-    stored_username = user_data[0][0]
-    stored_name = user_data[0][1]
-    stored_hash = user_data[0][2]
-    stored_join_date = user_data[0][3]  # <--- THIS WAS MISSING
+    row = user_data[0]
+    if not row or len(row) < 3:
+        return None
+
+    # Database columns (current): 0=username, 1=name, 2=password, 3=join_date
+    stored_username = row[0]
+    stored_name = row[1]
+    stored_hash = row[2]
+    stored_join_date = row[3] if len(row) > 3 else None
     
     if verify_password(password, stored_hash):
-        # We now return the join_date too
+        # Return join_date if present (for older DBs it may be missing)
         return {
             "username": stored_username, 
             "name": stored_name, 
